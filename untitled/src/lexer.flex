@@ -4,7 +4,21 @@ import java.util.ArrayList;
 import java_cup.runtime.*;
 
 // This object will contain the token name and line where is located
-public static class token{
+
+void main(String[] args) throws Exception {
+        // If you pass a file name as argument, use it; otherwise use stdin
+        Reader reader;
+        if (args.length > 0) {
+            reader = new FileReader(args[0]);
+        } else {
+            reader = new InputStreamReader(System.in);
+        }
+
+        absScanner scanner = new absScanner(reader);
+        scanner.yylex(); // this triggers scanning until EOF
+    }
+
+class token{
 
     String tokenName;
     String value;
@@ -18,16 +32,14 @@ public static class token{
 }
 
 // List of the tokens that it found
-public static ArrayList<token> tokenList = new ArrayList<>();
+ArrayList<token> tokenList = new ArrayList<>();
 
 // List of error tokens
-public static ArrayList<token> errorList = new ArrayList<>();
+ArrayList<token> errorList = new ArrayList<>();
 
 %% // Declarations
 
 %class absScanner
-%public
-%standalone
 %unicode
 %cup
 %line
@@ -119,7 +131,6 @@ TEXT = [a-zA-Z0-9_\n]*
 "<"                             {token newToken = new token("OP_LESS", yytext(), yyline); tokenList.add(newToken);}
 ";"                             {token newToken = new token("OP_SEMICOLON", yytext(), yyline); tokenList.add(newToken);}
 "]"                             {token newToken = new token("OP_CLOSEBRACKET", yytext(), yyline); tokenList.add(newToken);}
-{TEXT}                          {token newToken = new token("IDENTIFIER", yytext(), yyline); tokenList.add(newToken);}
 "{" [^}]* "}"                   { /* Inline comment */ }
 "(*" .*? "*)"                   { /* Multiblock comment */ }
 .                               { token newToken = new token("OP_CLOSEBRACKET", yytext(), yyline); errorList.add(newToken); }
