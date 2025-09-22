@@ -11,8 +11,7 @@ public class token {
         this.line = line;
     }
 
-    @Override
-    public String toString() {
-        return "token{name='" + tokenName + "', value='" + value + "', line=" + line + "}";
-    }
+    public String getTokenName() { return tokenName; }
+    public String getValue() { return value; }
+    public int getLine() { return line; }
 }
