@@ -19,7 +19,7 @@ public class Main {
             Reader reader;
             // If the user marks a one then the default file would be used
             if ("1".equals(opt)) {
-                reader = new FileReader("untitled/src/test.txt");
+                reader = new FileReader("src/test.txt");
                 absScanner scanner = new absScanner(reader);
                 lexAn(scanner);
             }
@@ -53,10 +53,42 @@ public class Main {
             tokenList.add(t);
         }
 
-        // To print the tokens
-        for (token tok : tokenList) {
-            System.out.println(tok);
+        Set<String> printed = new HashSet<>();
+
+        for (token currentToken : tokenList) {
+            String key = "%s|%s".formatted(currentToken.getTokenName(), currentToken.getValue());
+
+            if (!printed.contains(key)) {
+                printed.add(key);
+
+                // Count occurrences per line
+                Map<Integer, Integer> lineCounts = new LinkedHashMap<>();
+                int count = 0;
+
+                for (token other : tokenList) {
+                    if (other.getTokenName().equals(currentToken.getTokenName()) &&
+                            other.getValue().equals(currentToken.getValue())) {
+
+                        lineCounts.put(other.getLine(),
+                                lineCounts.getOrDefault(other.getLine(), 0) + 1);
+                        count++;
+                    }
+                }
+
+                // Build formatted line list
+                List<String> formattedLines = new ArrayList<>();
+                for (Map.Entry<Integer, Integer> e : lineCounts.entrySet()) {
+                    if (e.getValue() > 1) {
+                        formattedLines.add("%d(%d)".formatted(e.getKey(), e.getValue()));
+                    } else {
+                        formattedLines.add(String.valueOf(e.getKey()));
+                    }
+                }
+
+                System.out.printf("Token: %s, Value: %s, Lines: %s, Count: %d%n", currentToken.getTokenName(), currentToken.getValue(), formattedLines, count);
+            }
         }
+
     }
 
 }
