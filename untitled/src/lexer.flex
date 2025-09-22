@@ -17,6 +17,7 @@ INTEXP =    [0-9]+([eE][+-]?[0-9]+)?
 FLOEXP =    [0-9]+\.[0-9]+([eE][+-]?[0-9]+)?
 ID   =      [A-Za-z_][A-Za-z0-9_]*
 TEXT =      [a-zA-Z0-9_\n]*
+CHAR =      [a-zA-Z0-9_\n]
 %% // Rules
 
 "ABSOLUTE"        {return new token("ABSOLUTE", yytext(), yyline);}
@@ -87,6 +88,7 @@ TEXT =      [a-zA-Z0-9_\n]*
 // To accept decimals with exp
 {FLOEXP}          {return new token("NUMBER", yytext(), yyline);}
 
+\'{CHAR}\'        {return new token("LITERAl", yytext(), yyline);}
 "+"               {return new token("OP_SUM", yytext(), yyline);}
 ">"               {return new token("OP_GREATER", yytext(), yyline);}
 "++"              {return new token("OP_INCREASE", yytext(), yyline);}
@@ -112,5 +114,5 @@ TEXT =      [a-zA-Z0-9_\n]*
 {ID}              {return new token("IDENTIFIER", yytext(), yyline);}
 "{" [^}]* "}"     { /* Inline comment */ }
 "(*" .*? "*)"     { /* Multiblock comment */ }
-[' '\t\r\n]+         { /* Ignore */ }
+[' '\t\r\n]+      { /* Ignore */ }
 .                 { return new token("ERROR", yytext(), yyline); }
