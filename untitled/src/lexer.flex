@@ -1,49 +1,11 @@
 // Main code
-import java.io.*;
-import java.util.ArrayList;
 
 // This object will contain the token name and line where is located
-
-void main(String[] args) throws Exception {
-    Reader reader = new FileReader("src/test.txt");
-    absScanner scanner = new absScanner(reader);
-    scanner.yylex(); // scan the file until EOF
-}
-
-class token{
-
-    String tokenName;
-    String value;
-    int line;
-
-    public token(String tokenName, String value, int line) {
-        this.tokenName = tokenName;
-        this.value = value;
-        this.line = line;
-    }
-}
-
-public class Yytoken {
-    public final String text;
-    public final int type;
-    public Yytoken(String text, int type) {
-        this.text = text;
-        this.type = type;
-    }
-}
-
-
-// List of the tokens that it found
-ArrayList<token> tokenList = new ArrayList<>();
-
-// List of error tokens
-ArrayList<token> errorList = new ArrayList<>();
 
 %% // Declarations
 
 %class absScanner
-%line
-%column
+%standalone
 
 BASE = ([0-9]+'x')?[0-9]+
 DIGIT = (\.[0-9]*)?
@@ -52,94 +14,85 @@ EXP = ('E'(-)?([0-9])*)?
 TEXT = [a-zA-Z0-9_\n]*
 %% // Rules
 
-"ABSOLUTE"                      {token newToken = new token("ABSOLUTE", yytext(), yyline); tokenList.add(newToken);}
-"CONST"                         {token newToken = new token("CONST", yytext(), yyline); tokenList.add(newToken);}
-"DOWNTO"                        {token newToken = new token("DOWNTO", yytext(), yyline); tokenList.add(newToken);}
-"FUNCTION"                      {token newToken = new token("FUNCTION", yytext(), yyline); tokenList.add(newToken);}
-"INTERFACE"                     {token newToken = new token("INTERFACE", yytext(), yyline); tokenList.add(newToken);}
-"OBJECT"                        {token newToken = new token("OBJECT", yytext(), yyline); tokenList.add(newToken);}
-"RECORD"                        {token newToken = new token("RECORD", yytext(), yyline); tokenList.add(newToken);}
-"THEN"                          {token newToken = new token("THEN", yytext(), yyline); tokenList.add(newToken);}
-"VAR"                           {token newToken = new token("VAR", yytext(), yyline); tokenList.add(newToken);}
-"AND"                           {token newToken = new token("AND", yytext(), yyline); tokenList.add(newToken);}
-"CONSTRUCTOR"                   {token newToken = new token("CONSTRUCTOR", yytext(), yyline); tokenList.add(newToken);}
-"ELSE"                          {token newToken = new token("ELSE", yytext(), yyline); tokenList.add(newToken);}
-"GOTO"                          {token newToken = new token("GOTO", yytext(), yyline); tokenList.add(newToken);}
-"INTERRUPT"                     {token newToken = new token("INTERRUPT", yytext(), yyline); tokenList.add(newToken);}
-"OF"                            {token newToken = new token("OF", yytext(), yyline); tokenList.add(newToken);}
-"REPEAT"                        {token newToken = new token("REPEAT", yytext(), yyline); tokenList.add(newToken);}
-"TO"                            {token newToken = new token("TO", yytext(), yyline); tokenList.add(newToken);}
-"VIRTUAL"                       {token newToken = new token("VIRTUAL", yytext(), yyline); tokenList.add(newToken);}
-"ARRAY"                         {token newToken = new token("ARRAY", yytext(), yyline); tokenList.add(newToken);}
-"DESTRUCTOR"                    {token newToken = new token("DESTRUCTOR", yytext(), yyline); tokenList.add(newToken);}
-"END"                           {token newToken = new token("END", yytext(), yyline); tokenList.add(newToken);}
-"IF"                            {token newToken = new token("IF", yytext(), yyline); tokenList.add(newToken);}
-"LABEL"                         {token newToken = new token("LABEL", yytext(), yyline); tokenList.add(newToken);}
-"OR"                            {token newToken = new token("OR", yytext(), yyline); tokenList.add(newToken);}
-"SET"                           {token newToken = new token("SET", yytext(), yyline); tokenList.add(newToken);}
-"TYPE"                          {token newToken = new token("TYPE", yytext(), yyline); tokenList.add(newToken);}
-"ASM"                           {token newToken = new token("ASM", yytext(), yyline); tokenList.add(newToken);}
-"EXTERNAL"                      {token newToken = new token("EXTERNAL", yytext(), yyline); tokenList.add(newToken);}
-"FILE"                          {token newToken = new token("FILE", yytext(), yyline); tokenList.add(newToken);}
-"IMPLEMENTATION"                {token newToken = new token("IMPLEMENTATION", yytext(), yyline); tokenList.add(newToken);}
-"MOD"                           {token newToken = new token("MOD", yytext(), yyline); tokenList.add(newToken);}
-"PACKED"                        {token newToken = new token("PACKED", yytext(), yyline); tokenList.add(newToken);}
-"SHL"                           {token newToken = new token("SHL", yytext(), yyline); tokenList.add(newToken);}
-"UNIT"                          {token newToken = new token("UNIT", yytext(), yyline); tokenList.add(newToken);}
-"BEGIN"                         {token newToken = new token("BEGIN", yytext(), yyline); tokenList.add(newToken);}
-"DIV"                           {token newToken = new token("DIV", yytext(), yyline); tokenList.add(newToken);}
-"FOR"                           {token newToken = new token("FOR", yytext(), yyline); tokenList.add(newToken);}
-"IN"                            {token newToken = new token("IN", yytext(), yyline); tokenList.add(newToken);}
-"NIL"                           {token newToken = new token("NIL", yytext(), yyline); tokenList.add(newToken);}
-"PRIVATE"                       {token newToken = new token("PRIVATE", yytext(), yyline); tokenList.add(newToken);}
-"SHR"                           {token newToken = new token("SHR", yytext(), yyline); tokenList.add(newToken);}
-"UNTIL"                         {token newToken = new token("UNTIL", yytext(), yyline); tokenList.add(newToken);}
-"XOR"                           {token newToken = new token("XOR", yytext(), yyline); tokenList.add(newToken);}
-"CASE"                          {token newToken = new token("CASE", yytext(), yyline); tokenList.add(newToken);}
-"DO"                            {token newToken = new token("DO", yytext(), yyline); tokenList.add(newToken);}
-"FORWARD"                       {token newToken = new token("FORWARD", yytext(), yyline); tokenList.add(newToken);}
-"INLINE"                        {token newToken = new token("INLINE", yytext(), yyline); tokenList.add(newToken);}
-"NOT"                           {token newToken = new token("NOT", yytext(), yyline); tokenList.add(newToken);}
-"PROCEDURE"                     {token newToken = new token("PROCEDURE", yytext(), yyline); tokenList.add(newToken);}
-"STRING"                        {token newToken = new token("STRING", yytext(), yyline); tokenList.add(newToken);}
-"INT"                           {token newToken = new token("INT", yytext(), yyline); tokenList.add(newToken);}
-"CHAR"                          {token newToken = new token("CHAR", yytext(), yyline); tokenList.add(newToken);}
-"BOOLEAN"                       {token newToken = new token("BOOL", yytext(), yyline); tokenList.add(newToken);}
-"FLOAT"                         {token newToken = new token("BOOL", yytext(), yyline); tokenList.add(newToken);}
-"USES"                          {token newToken = new token("USES", yytext(), yyline); tokenList.add(newToken);}
-\"{TEXT}\"                      {token newToken = new token("LITERAL", yytext(), yyline); tokenList.add(newToken);}
-'-'?{BASE}{DIGIT}{EXP}          {token newToken = new token("LITERAL", yytext(), yyline); tokenList.add(newToken);}
-"+"                             {token newToken = new token("OP_SUM", yytext(), yyline); tokenList.add(newToken);}
-">"                             {token newToken = new token("OP_GREATER", yytext(), yyline); tokenList.add(newToken);}
-"++"                            {token newToken = new token("OP_INCREASE", yytext(), yyline); tokenList.add(newToken);}
-":"                             {token newToken = new token("OP_COLON", yytext(), yyline); tokenList.add(newToken);}
-"-"                             {token newToken = new token("OP_MINUS", yytext(), yyline); tokenList.add(newToken);}
-"<="                            {token newToken = new token("OP_LESSEQUAL", yytext(), yyline); tokenList.add(newToken);}
-"--"                            {token newToken = new token("OP_DECREASE", yytext(), yyline); tokenList.add(newToken);}
-"."                             {token newToken = new token("OP_PERIOD", yytext(), yyline); tokenList.add(newToken);}
-"*"                             {token newToken = new token("OP_MULT", yytext(), yyline); tokenList.add(newToken);}
-">="                            {token newToken = new token("OP_GREATEREQUAL", yytext(), yyline); tokenList.add(newToken);}
-"("                             {token newToken = new token("OP_OPENPARENTHESIS", yytext(), yyline); tokenList.add(newToken);}
-"^"                             {token newToken = new token("OP_POWER", yytext(), yyline); tokenList.add(newToken);}
-"/"                             {token newToken = new token("OP_SLASH", yytext(), yyline); tokenList.add(newToken);}
-"="                             {token newToken = new token("OP_EQUALS", yytext(), yyline); tokenList.add(newToken);}
-")"                             {token newToken = new token("OR_CLOSEPARENTHESIS", yytext(), yyline); tokenList.add(newToken);}
-"**"                            {token newToken = new token("OP_DOUBLEASTERISK", yytext(), yyline); tokenList.add(newToken);}
-"<>"                            {token newToken = new token("OP_TYPE", yytext(), yyline); tokenList.add(newToken);}
-","                             {token newToken = new token("OP_COMMA", yytext(), yyline); tokenList.add(newToken);}
-"["                             {token newToken = new token("OP_OPENBRACKET", yytext(), yyline); tokenList.add(newToken);}
-"<"                             {token newToken = new token("OP_LESS", yytext(), yyline); tokenList.add(newToken);}
-";"                             {token newToken = new token("OP_SEMICOLON", yytext(), yyline); tokenList.add(newToken);}
-"]"                             {token newToken = new token("OP_CLOSEBRACKET", yytext(), yyline); tokenList.add(newToken);}
+"ABSOLUTE"                      {System.out.println("ABSOLUTE");}
+"CONST"                         {System.out.println("CONST");}
+"DOWNTO"                        {System.out.println("DOWNTO");}
+"FUNCTION"                      {System.out.println("FUNCTION");}
+"INTERFACE"                     {System.out.println("INTERFACE");}
+"OBJECT"                        {System.out.println("OBJECT");}
+"RECORD"                        {System.out.println("RECORD");}
+"THEN"                          {System.out.println("THEN");}
+"VAR"                           {System.out.println("VAR");}
+"AND"                           {System.out.println("AND");}
+"CONSTRUCTOR"                   {System.out.println("CONSTRUCTOR");}
+"ELSE"                          {System.out.println("ELSE");}
+"GOTO"                          {System.out.println("GOTO");}
+"INTERRUPT"                     {System.out.println("INTERRUPT");}
+"OF"                            {System.out.println("OF");}
+"REPEAT"                        {System.out.println("REPEAT");}
+"TO"                            {System.out.println("TO");}
+"VIRTUAL"                       {System.out.println("VIRTUAL");}
+"ARRAY"                         {System.out.println("ARRAY");}
+"DESTRUCTOR"                    {System.out.println("DESTRUCTOR");}
+"END"                           {System.out.println("END");}
+"IF"                            {System.out.println("IF");}
+"LABEL"                         {System.out.println("LABEL");}
+"OR"                            {System.out.println("OR");}
+"SET"                           {System.out.println("SET");}
+"TYPE"                          {System.out.println("TYPE");}
+"ASM"                           {System.out.println("ASM");}
+"EXTERNAL"                      {System.out.println("EXTERNAL");}
+"FILE"                          {System.out.println("FILE");}
+"IMPLEMENTATION"                {System.out.println("IMPLEMENTATION");}
+"MOD"                           {System.out.println("MOD");}
+"PACKED"                        {System.out.println("PACKED");}
+"SHL"                           {System.out.println("SHL");}
+"UNIT"                          {System.out.println("UNIT");}
+"BEGIN"                         {System.out.println("BEGIN");}
+"DIV"                           {System.out.println("DIV");}
+"FOR"                           {System.out.println("FOR");}
+"IN"                            {System.out.println("IN");}
+"NIL"                           {System.out.println("NIL");}
+"PRIVATE"                       {System.out.println("PRIVATE");}
+"SHR"                           {System.out.println("SHR");}
+"UNTIL"                         {System.out.println("UNTIL");}
+"XOR"                           {System.out.println("XOR");}
+"CASE"                          {System.out.println("CASE");}
+"DO"                            {System.out.println("DO");}
+"FORWARD"                       {System.out.println("FORWARD");}
+"INLINE"                        {System.out.println("INLINE");}
+"NOT"                           {System.out.println("NOT");}
+"PROCEDURE"                     {System.out.println("PROCEDURE");}
+"STRING"                        {System.out.println("STRING");}
+"INT"                           {System.out.println("INT");}
+"CHAR"                          {System.out.println("CHAR");}
+"BOOLEAN"                       {System.out.println("BOOL");}
+"FLOAT"                         {System.out.println("BOOL");}
+"USES"                          {System.out.println("USES");}
+\"{TEXT}\"                      {System.out.println("LITERAL");}
+'-'?{BASE}{DIGIT}{EXP}          {System.out.println("LITERAL");}
+"+"                             {System.out.println("OP_SUM");}
+">"                             {System.out.println("OP_GREATER");}
+"++"                            {System.out.println("OP_INCREASE");}
+":"                             {System.out.println("OP_COLON");}
+"-"                             {System.out.println("OP_MINUS");}
+"<="                            {System.out.println("OP_LESSEQUAL");}
+"--"                            {System.out.println("OP_DECREASE");}
+"."                             {System.out.println("OP_PERIOD");}
+"*"                             {System.out.println("OP_MULT");}
+">="                            {System.out.println("OP_GREATEREQUAL");}
+"("                             {System.out.println("OP_OPENPARENTHESIS");}
+"^"                             {System.out.println("OP_POWER");}
+"/"                             {System.out.println("OP_SLASH");}
+"="                             {System.out.println("OP_EQUALS");}
+")"                             {System.out.println("OR_CLOSEPARENTHESIS");}
+"**"                            {System.out.println("OP_DOUBLEASTERISK");}
+"<>"                            {System.out.println("OP_TYPE");}
+","                             {System.out.println("OP_COMMA");}
+"["                             {System.out.println("OP_OPENBRACKET");}
+"<"                             {System.out.println("OP_LESS");}
+";"                             {System.out.println("OP_SEMICOLON");}
+"]"                             {System.out.println("OP_CLOSEBRACKET");}
 "{" [^}]* "}"                   { /* Inline comment */ }
 "(*" .*? "*)"                   { /* Multiblock comment */ }
-.                               { token newToken = new token("OP_CLOSEBRACKET", yytext(), yyline); errorList.add(newToken); }
-<<EOF>>{
-          for (token t : tokenList) {
-              System.out.println("Token: " + t.tokenName + ", Value: " + t.value + ", Line: " + t.line);
-          }
-
-          for (token t : errorList) {
-              System.out.println("Error: " + t.tokenName + ", Value: " + t.value + ", Line: " + t.line);
-          }
-      }
+.                               {System.out.println("Error");}

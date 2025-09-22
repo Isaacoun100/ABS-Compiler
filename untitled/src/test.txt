@@ -1,0 +1,54 @@
+BEGIN end BeGiN END var VAR type Type while WHILE then THEN if IF
+valor VALOR VaLoR
+abc_123 X2Y3 z9
++ - * / = <> < > <= >= , ; ( ) [ ] : . ^
+++ -- **
+a DIV b
+c Mod d
+NOT e AND f OR g
+x in y
+X IN Y
+var x : string; { esto es un comentario con ++ "hola" 123 }
+end
+var y : string; (* otro comentario con palabras 
+reservadas IF THEN END y ++ *)
+var a : string;
+{ comentario abierto sin cierre
+a = "algo";
+var b : string;
+(* comentario abierto sin cierre
+b = "algo";
+0 7 42 123456
+077 07 00
+0x1A3F 0xFF 0x0
+5.0 0.5 123.456 3.0E5 1.5e-4
+5. .5 10.E+2
+"hola mundo"
+""
+'A'
+'9'
+"hola 
+mundo"
+"sin cierre
+'AB'      
+'         
+beginning
+recordX
+interface2
+origen
+stringy
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+& @ # ? ~
+VAR x : STRING;
+var y : integer;  
+BEGIN
+  x = "Hi";
+  y = 0x1F + 07 + 3.14E2;
+  z = y ** 2;
+  IF NOT (x = "Hi") THEN
+    y ++ ;
+  (* comentario intermedio *)
+  y -- ;
+  w = (5.0 <= 10.0) OR (3 > 2) AND (1 <> 0);
+END
