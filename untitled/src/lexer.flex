@@ -7,11 +7,14 @@
 %class absScanner
 %standalone
 
+//TODO: no se estan reconociendo los numeros
 BASE = ([0-9]+'x')?[0-9]+
 DIGIT = (\.[0-9]*)?
 EXP = ('E'(-)?([0-9])*)?
 
-TEXT = [a-zA-Z0-9_\n]*
+TEXT = [a-zA-Z0-9_\n]* 
+
+ID   = [A-Za-z_][A-Za-z0-9_]* // identificadores
 %% // Rules
 
 "ABSOLUTE"                      {System.out.println("ABSOLUTE");}
@@ -72,7 +75,9 @@ TEXT = [a-zA-Z0-9_\n]*
 "FLOAT"                         {System.out.println("BOOL");}
 "USES"                          {System.out.println("USES");}
 \"{TEXT}\"                      {System.out.println("LITERAL");}
-'-'?{BASE}{DIGIT}{EXP}          {System.out.println("LITERAL");}
+// '-'?{BASE}{DIGIT}{EXP}       {System.out.println("LITERAL");} 
+// TODO: No reconoce los numeros con la de arriba
+{BASE}{DIGIT}{EXP}              {System.out.println("LITERAL");} 
 "+"                             {System.out.println("OP_SUM");}
 ">"                             {System.out.println("OP_GREATER");}
 "++"                            {System.out.println("OP_INCREASE");}
@@ -98,4 +103,5 @@ TEXT = [a-zA-Z0-9_\n]*
 "{" [^}]* "}"                   { /* Inline comment */ }
 "(*" .*? "*)"                   { /* Multiblock comment */ }
 [ \t\r\n]+                      { /* ignore */ }
+{ID}                             {System.out.println("IDENTIFIER");}
 .                               {System.out.println("Error");}
