@@ -1,11 +1,15 @@
-// Main code
+import obj.token;
 
 // This object will contain the token name and line where is located
 
-%% // Declarations
+%%
 
 %class absScanner
-%standalone
+%unicode
+%line
+%column
+%public
+%type token
 
 BASE = ([0-9]+'x')?[0-9]+
 DIGIT = (\.[0-9]*)?
@@ -14,88 +18,88 @@ EXP = ('E'(-)?([0-9])*)?
 TEXT = [a-zA-Z0-9_\n]*
 %% // Rules
 
-"ABSOLUTE"                      {System.out.println("ABSOLUTE");}
-"CONST"                         {System.out.println("CONST");}
-"DOWNTO"                        {System.out.println("DOWNTO");}
-"FUNCTION"                      {System.out.println("FUNCTION");}
-"INTERFACE"                     {System.out.println("INTERFACE");}
-"OBJECT"                        {System.out.println("OBJECT");}
-"RECORD"                        {System.out.println("RECORD");}
-"THEN"                          {System.out.println("THEN");}
-"VAR"                           {System.out.println("VAR");}
-"AND"                           {System.out.println("AND");}
-"CONSTRUCTOR"                   {System.out.println("CONSTRUCTOR");}
-"ELSE"                          {System.out.println("ELSE");}
-"GOTO"                          {System.out.println("GOTO");}
-"INTERRUPT"                     {System.out.println("INTERRUPT");}
-"OF"                            {System.out.println("OF");}
-"REPEAT"                        {System.out.println("REPEAT");}
-"TO"                            {System.out.println("TO");}
-"VIRTUAL"                       {System.out.println("VIRTUAL");}
-"ARRAY"                         {System.out.println("ARRAY");}
-"DESTRUCTOR"                    {System.out.println("DESTRUCTOR");}
-"END"                           {System.out.println("END");}
-"IF"                            {System.out.println("IF");}
-"LABEL"                         {System.out.println("LABEL");}
-"OR"                            {System.out.println("OR");}
-"SET"                           {System.out.println("SET");}
-"TYPE"                          {System.out.println("TYPE");}
-"ASM"                           {System.out.println("ASM");}
-"EXTERNAL"                      {System.out.println("EXTERNAL");}
-"FILE"                          {System.out.println("FILE");}
-"IMPLEMENTATION"                {System.out.println("IMPLEMENTATION");}
-"MOD"                           {System.out.println("MOD");}
-"PACKED"                        {System.out.println("PACKED");}
-"SHL"                           {System.out.println("SHL");}
-"UNIT"                          {System.out.println("UNIT");}
-"BEGIN"                         {System.out.println("BEGIN");}
-"DIV"                           {System.out.println("DIV");}
-"FOR"                           {System.out.println("FOR");}
-"IN"                            {System.out.println("IN");}
-"NIL"                           {System.out.println("NIL");}
-"PRIVATE"                       {System.out.println("PRIVATE");}
-"SHR"                           {System.out.println("SHR");}
-"UNTIL"                         {System.out.println("UNTIL");}
-"WHILE"                         {System.out.println("WHILE");}
-"WITH"                          {System.out.println("WITH");}
-"XOR"                           {System.out.println("XOR");}
-"CASE"                          {System.out.println("CASE");}
-"DO"                            {System.out.println("DO");}
-"FORWARD"                       {System.out.println("FORWARD");}
-"INLINE"                        {System.out.println("INLINE");}
-"NOT"                           {System.out.println("NOT");}
-"PROCEDURE"                     {System.out.println("PROCEDURE");}
-"STRING"                        {System.out.println("STRING");}
-"INT"                           {System.out.println("INT");}
-"CHAR"                          {System.out.println("CHAR");}
-"BOOLEAN"                       {System.out.println("BOOL");}
-"FLOAT"                         {System.out.println("BOOL");}
-"USES"                          {System.out.println("USES");}
-\"{TEXT}\"                      {System.out.println("LITERAL");}
-'-'?{BASE}{DIGIT}{EXP}          {System.out.println("LITERAL");}
-"+"                             {System.out.println("OP_SUM");}
-">"                             {System.out.println("OP_GREATER");}
-"++"                            {System.out.println("OP_INCREASE");}
-":"                             {System.out.println("OP_COLON");}
-"-"                             {System.out.println("OP_MINUS");}
-"<="                            {System.out.println("OP_LESSEQUAL");}
-"--"                            {System.out.println("OP_DECREASE");}
-"."                             {System.out.println("OP_PERIOD");}
-"*"                             {System.out.println("OP_MULT");}
-">="                            {System.out.println("OP_GREATEREQUAL");}
-"("                             {System.out.println("OP_OPENPARENTHESIS");}
-"^"                             {System.out.println("OP_POWER");}
-"/"                             {System.out.println("OP_SLASH");}
-"="                             {System.out.println("OP_EQUALS");}
-")"                             {System.out.println("OR_CLOSEPARENTHESIS");}
-"**"                            {System.out.println("OP_DOUBLEASTERISK");}
-"<>"                            {System.out.println("OP_TYPE");}
-","                             {System.out.println("OP_COMMA");}
-"["                             {System.out.println("OP_OPENBRACKET");}
-"<"                             {System.out.println("OP_LESS");}
-";"                             {System.out.println("OP_SEMICOLON");}
-"]"                             {System.out.println("OP_CLOSEBRACKET");}
+"ABSOLUTE"                      {return new token("ABSOLUTE", yytext(), yyline);}
+"CONST"                         {return new token("CONST", yytext(), yyline);}
+"DOWNTO"                        {return new token("DOWNTO", yytext(), yyline);}
+"FUNCTION"                      {return new token("FUNCTION", yytext(), yyline);}
+"INTERFACE"                     {return new token("INTERFACE", yytext(), yyline);}
+"OBJECT"                        {return new token("OBJECT", yytext(), yyline);}
+"RECORD"                        {return new token("RECORD", yytext(), yyline);}
+"THEN"                          {return new token("THEN", yytext(), yyline);}
+"VAR"                           {return new token("VAR", yytext(), yyline);}
+"AND"                           {return new token("AND", yytext(), yyline);}
+"CONSTRUCTOR"                   {return new token("CONSTRUCTOR", yytext(), yyline);}
+"ELSE"                          {return new token("ELSE", yytext(), yyline);}
+"GOTO"                          {return new token("GOTO", yytext(), yyline);}
+"INTERRUPT"                     {return new token("INTERRUPT", yytext(), yyline);}
+"OF"                            {return new token("OF", yytext(), yyline);}
+"REPEAT"                        {return new token("REPEAT", yytext(), yyline);}
+"TO"                            {return new token("TO", yytext(), yyline);}
+"VIRTUAL"                       {return new token("VIRTUAL", yytext(), yyline);}
+"ARRAY"                         {return new token("ARRAY", yytext(), yyline);}
+"DESTRUCTOR"                    {return new token("DESTRUCTOR", yytext(), yyline);}
+"END"                           {return new token("END", yytext(), yyline);}
+"IF"                            {return new token("IF", yytext(), yyline);}
+"LABEL"                         {return new token("LABEL", yytext(), yyline);}
+"OR"                            {return new token("OR", yytext(), yyline);}
+"SET"                           {return new token("SET", yytext(), yyline);}
+"TYPE"                          {return new token("TYPE", yytext(), yyline);}
+"ASM"                           {return new token("ASM", yytext(), yyline);}
+"EXTERNAL"                      {return new token("EXTERNAL", yytext(), yyline);}
+"FILE"                          {return new token("FILE", yytext(), yyline);}
+"IMPLEMENTATION"                {return new token("IMPLEMENTATION", yytext(), yyline);}
+"MOD"                           {return new token("MOD", yytext(), yyline);}
+"PACKED"                        {return new token("PACKED", yytext(), yyline);}
+"SHL"                           {return new token("SHL", yytext(), yyline);}
+"UNIT"                          {return new token("UNIT", yytext(), yyline);}
+"BEGIN"                         {return new token("BEGIN", yytext(), yyline);}
+"DIV"                           {return new token("DIV", yytext(), yyline);}
+"FOR"                           {return new token("FOR", yytext(), yyline);}
+"IN"                            {return new token("IN", yytext(), yyline);}
+"NIL"                           {return new token("NIL", yytext(), yyline);}
+"PRIVATE"                       {return new token("PRIVATE", yytext(), yyline);}
+"WHILE"                         {return new token("WHILE", yytext(), yyline);}
+"WITH"                          {return new token("WHILE", yytext(), yyline);}
+"SHR"                           {return new token("SHR", yytext(), yyline);}
+"UNTIL"                         {return new token("UNTIL", yytext(), yyline);}
+"XOR"                           {return new token("XOR", yytext(), yyline);}
+"CASE"                          {return new token("CASE", yytext(), yyline);}
+"DO"                            {return new token("DO", yytext(), yyline);}
+"FORWARD"                       {return new token("FORWARD", yytext(), yyline);}
+"INLINE"                        {return new token("INLINE", yytext(), yyline);}
+"NOT"                           {return new token("NOT", yytext(), yyline);}
+"PROCEDURE"                     {return new token("PROCEDURE", yytext(), yyline);}
+"STRING"                        {return new token("STRING", yytext(), yyline);}
+"INT"                           {return new token("INT", yytext(), yyline);}
+"CHAR"                          {return new token("CHAR", yytext(), yyline);}
+"BOOLEAN"                       {return new token("BOOL", yytext(), yyline);}
+"FLOAT"                         {return new token("BOOL", yytext(), yyline);}
+"USES"                          {return new token("USES", yytext(), yyline);}
+\"{TEXT}\"                      {return new token("LITERAL", yytext(), yyline);}
+'-'?{BASE}{DIGIT}{EXP}          {return new token("LITERAL", yytext(), yyline);}
+"+"                             {return new token("OP_SUM", yytext(), yyline);}
+">"                             {return new token("OP_GREATER", yytext(), yyline);}
+"++"                            {return new token("OP_INCREASE", yytext(), yyline);}
+":"                             {return new token("OP_COLON", yytext(), yyline);}
+"-"                             {return new token("OP_MINUS", yytext(), yyline);}
+"<="                            {return new token("OP_LESSEQUAL", yytext(), yyline);}
+"--"                            {return new token("OP_DECREASE", yytext(), yyline);}
+"."                             {return new token("OP_PERIOD", yytext(), yyline);}
+"*"                             {return new token("OP_MULT", yytext(), yyline);}
+">="                            {return new token("OP_GREATEREQUAL", yytext(), yyline);}
+"("                             {return new token("OP_OPENPARENTHESIS", yytext(), yyline);}
+"^"                             {return new token("OP_POWER", yytext(), yyline);}
+"/"                             {return new token("OP_SLASH", yytext(), yyline);}
+"="                             {return new token("OP_EQUALS", yytext(), yyline);}
+")"                             {return new token("OR_CLOSEPARENTHESIS", yytext(), yyline);}
+"**"                            {return new token("OP_DOUBLEASTERISK", yytext(), yyline);}
+"<>"                            {return new token("OP_TYPE", yytext(), yyline);}
+","                             {return new token("OP_COMMA", yytext(), yyline);}
+"["                             {return new token("OP_OPENBRACKET", yytext(), yyline);}
+"<"                             {return new token("OP_LESS", yytext(), yyline);}
+";"                             {return new token("OP_SEMICOLON", yytext(), yyline);}
+"]"                             {return new token("OP_CLOSEBRACKET", yytext(), yyline);}
 "{" [^}]* "}"                   { /* Inline comment */ }
 "(*" .*? "*)"                   { /* Multiblock comment */ }
-[ \t\r\n]+                      { /* ignore */ }
-.                               {System.out.println("Error");}
+\t|\n                           { /* Ignore */ }
+.                               { return new token("ERROR", yytext(), yyline); }
