@@ -1,5 +1,5 @@
 // Main code
-
+import obj.token;
 // This object will contain the token name and line where is located
 
 %% // Declarations
@@ -78,7 +78,7 @@ ID   = [A-Za-z_][A-Za-z0-9_]* // identificadores
 "FLOAT"                         {return new token("BOOL", yytext(), yyline);}
 "USES"                          {return new token("USES", yytext(), yyline);}
 \"{TEXT}\"                      {return new token("LITERAL", yytext(), yyline);}
-'-'?{BASE}{DIGIT}{EXP}          {return new token("LITERAL", yytext(), yyline);}
+{BASE}?{DIGIT}{EXP}?            {return new token("LITERAL", yytext(), yyline);}
 "+"                             {return new token("OP_SUM", yytext(), yyline);}
 ">"                             {return new token("OP_GREATER", yytext(), yyline);}
 "++"                            {return new token("OP_INCREASE", yytext(), yyline);}
