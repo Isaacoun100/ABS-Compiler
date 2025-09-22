@@ -15,7 +15,7 @@ public class Main {
         Reader reader;
         if ("1".equals(opt)) {
             // Usa el archivo de prueba (ajusta la ruta si lo moviste)
-            reader = new FileReader("test.txt");
+            reader = new FileReader("untitled/src/test.txt");
         } else {
             System.out.println("Escribe tu código y finaliza con EOF (Ctrl+Z y Enter en Windows, Ctrl+D en macOS/Linux):");
             reader = new InputStreamReader(System.in);
