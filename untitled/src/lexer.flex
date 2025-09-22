@@ -56,6 +56,8 @@ TEXT = [a-zA-Z0-9_\n]*
 "PRIVATE"                       {System.out.println("PRIVATE");}
 "SHR"                           {System.out.println("SHR");}
 "UNTIL"                         {System.out.println("UNTIL");}
+"WHILE"                         {System.out.println("WHILE");}
+"WITH"                          {System.out.println("WITH");}
 "XOR"                           {System.out.println("XOR");}
 "CASE"                          {System.out.println("CASE");}
 "DO"                            {System.out.println("DO");}
@@ -95,4 +97,5 @@ TEXT = [a-zA-Z0-9_\n]*
 "]"                             {System.out.println("OP_CLOSEBRACKET");}
 "{" [^}]* "}"                   { /* Inline comment */ }
 "(*" .*? "*)"                   { /* Multiblock comment */ }
+[ \t\r\n]+                      { /* ignore */ }
 .                               {System.out.println("Error");}
