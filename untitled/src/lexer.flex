@@ -1,8 +1,8 @@
-import obj.token;
+// Main code
 
 // This object will contain the token name and line where is located
 
-%%
+%% // Declarations
 
 %class absScanner
 %unicode
@@ -16,6 +16,8 @@ DIGIT = (\.[0-9]*)?
 EXP = ('E'(-)?([0-9])*)?
 
 TEXT = [a-zA-Z0-9_\n]*
+
+ID   = [A-Za-z_][A-Za-z0-9_]* // identificadores
 %% // Rules
 
 "ABSOLUTE"                      {return new token("ABSOLUTE", yytext(), yyline);}
@@ -99,7 +101,8 @@ TEXT = [a-zA-Z0-9_\n]*
 "<"                             {return new token("OP_LESS", yytext(), yyline);}
 ";"                             {return new token("OP_SEMICOLON", yytext(), yyline);}
 "]"                             {return new token("OP_CLOSEBRACKET", yytext(), yyline);}
+{ID}                            {return new token("IDENTIFIER", yytext(), yyline);}
 "{" [^}]* "}"                   { /* Inline comment */ }
 "(*" .*? "*)"                   { /* Multiblock comment */ }
-\t|\n                           { /* Ignore */ }
+[\t\r\n]+                       { /* Ignore */ }
 .                               { return new token("ERROR", yytext(), yyline); }
