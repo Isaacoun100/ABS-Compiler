@@ -1,22 +1,14 @@
 // Main code
 import java.io.*;
 import java.util.ArrayList;
-import java_cup.runtime.*;
 
 // This object will contain the token name and line where is located
 
 void main(String[] args) throws Exception {
-        // If you pass a file name as argument, use it; otherwise use stdin
-        Reader reader;
-        if (args.length > 0) {
-            reader = new FileReader(args[0]);
-        } else {
-            reader = new InputStreamReader(System.in);
-        }
-
-        absScanner scanner = new absScanner(reader);
-        scanner.yylex(); // this triggers scanning until EOF
-    }
+    Reader reader = new FileReader("src/test.txt");
+    absScanner scanner = new absScanner(reader);
+    scanner.yylex(); // scan the file until EOF
+}
 
 class token{
 
@@ -31,6 +23,16 @@ class token{
     }
 }
 
+public class Yytoken {
+    public final String text;
+    public final int type;
+    public Yytoken(String text, int type) {
+        this.text = text;
+        this.type = type;
+    }
+}
+
+
 // List of the tokens that it found
 ArrayList<token> tokenList = new ArrayList<>();
 
@@ -40,8 +42,6 @@ ArrayList<token> errorList = new ArrayList<>();
 %% // Declarations
 
 %class absScanner
-%unicode
-%cup
 %line
 %column
 

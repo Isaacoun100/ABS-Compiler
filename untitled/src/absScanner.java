@@ -5,22 +5,14 @@
 // Main code
 import java.io.*;
 import java.util.ArrayList;
-import java_cup.runtime.*;
 
 // This object will contain the token name and line where is located
 
 void main(String[] args) throws Exception {
-        // If you pass a file name as argument, use it; otherwise use stdin
-        Reader reader;
-        if (args.length > 0) {
-            reader = new FileReader(args[0]);
-        } else {
-            reader = new InputStreamReader(System.in);
-        }
-
-        absScanner scanner = new absScanner(reader);
-        scanner.yylex(); // this triggers scanning until EOF
-    }
+    Reader reader = new FileReader("src/test.txt");
+    absScanner scanner = new absScanner(reader);
+    scanner.yylex(); // scan the file until EOF
+}
 
 class token{
 
@@ -35,6 +27,16 @@ class token{
     }
 }
 
+public class Yytoken {
+    public final String text;
+    public final int type;
+    public Yytoken(String text, int type) {
+        this.text = text;
+        this.type = type;
+    }
+}
+
+
 // List of the tokens that it found
 ArrayList<token> tokenList = new ArrayList<>();
 
@@ -43,7 +45,7 @@ ArrayList<token> errorList = new ArrayList<>();
 
 
 @SuppressWarnings("fallthrough")
-class absScanner implements java_cup.runtime.Scanner {
+class absScanner {
 
   /** This character denotes the end of file. */
   public static final int YYEOF = -1;
@@ -437,6 +439,7 @@ class absScanner implements java_cup.runtime.Scanner {
   private boolean zzAtBOL = true;
 
   /** Whether the user-EOF-code has already been executed. */
+  @SuppressWarnings("unused")
   private boolean zzEOFDone;
 
 
@@ -700,18 +703,6 @@ class absScanner implements java_cup.runtime.Scanner {
   }
 
 
-  /**
-   * Contains user EOF-code, which will be executed exactly once,
-   * when the end of file is reached
-   */
-  private void zzDoEOF() throws java.io.IOException {
-    if (!zzEOFDone) {
-      zzEOFDone = true;
-    
-  yyclose();    }
-  }
-
-
 
 
   /**
@@ -721,7 +712,7 @@ class absScanner implements java_cup.runtime.Scanner {
    * @return the next token.
    * @exception java.io.IOException if any I/O-Error occurs.
    */
-  @Override  public java_cup.runtime.Symbol next_token() throws java.io.IOException
+  public Yytoken yylex() throws java.io.IOException
   {
     int zzInput;
     int zzAction;
@@ -858,7 +849,6 @@ class absScanner implements java_cup.runtime.Scanner {
 
       if (zzInput == YYEOF && zzStartRead == zzCurrentPos) {
         zzAtEOF = true;
-            zzDoEOF();
               {
                 for (token t : tokenList) {
               System.out.println("Token: " + t.tokenName + ", Value: " + t.value + ", Line: " + t.line);
