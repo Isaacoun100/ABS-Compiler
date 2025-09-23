@@ -35,7 +35,7 @@ public class Main {
             // If the user marks anything other than 1 or 2
             else {
                 System.out.println("Por favor escribe una opción válida");
-                break;
+                // break; //Se quito para que el ciclo funcione correctamente, y no tenga que volver a ejecutar
             }
 
         }
