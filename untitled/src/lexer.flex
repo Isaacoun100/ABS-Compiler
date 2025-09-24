@@ -13,10 +13,14 @@ import obj.token;
 %ignorecase
 
 // Variables for the rules
-HEX =       [0-9]+[xX][0-9a-fA-F]+
-INTEXP =    [0-9]+([eE][+-]?[0-9]+)?
-FLOEXP =    [0-9]+\.[0-9]+([eE][+-]?[0-9]+)?
-ID   =      [A-Za-z_][A-Za-z0-9_]*
+REAL = [0-9]+\.[0-9]+([eE][+-]?[0-9]+)?
+INT  = [0-9]+
+OCT  = 0[0-7]+
+HEX  = 0[xX][0-9a-fA-F]+
+// HEX =       [0-9]+[xX][0-9a-fA-F]+
+// INTEXP =    [0-9]+([eE][+-]?[0-9]+)?
+// FLOEXP =    [0-9]+\.[0-9]+([eE][+-]?[0-9]+)?
+ID   =      [A-Za-z_][A-Za-z0-9_]{0,126}
 TEXT =      [a-zA-Z0-9_\n]*
 CHAR =      [a-zA-Z0-9_\n]
 %% // Rules
@@ -62,7 +66,7 @@ CHAR =      [a-zA-Z0-9_\n]
 "NIL"             {return new token("NIL", yytext(), yyline);}
 "PRIVATE"         {return new token("PRIVATE", yytext(), yyline);}
 "WHILE"           {return new token("WHILE", yytext(), yyline);}
-"WITH"            {return new token("WHILE", yytext(), yyline);}
+"WITH"            {return new token("WITH", yytext(), yyline);}
 "SHR"             {return new token("SHR", yytext(), yyline);}
 "UNTIL"           {return new token("UNTIL", yytext(), yyline);}
 "XOR"             {return new token("XOR", yytext(), yyline);}
@@ -73,21 +77,21 @@ CHAR =      [a-zA-Z0-9_\n]
 "NOT"             {return new token("NOT", yytext(), yyline);}
 "PROCEDURE"       {return new token("PROCEDURE", yytext(), yyline);}
 "STRING"          {return new token("STRING", yytext(), yyline);}
-"INT"             {return new token("INT", yytext(), yyline);}
-"CHAR"            {return new token("CHAR", yytext(), yyline);}
-"BOOLEAN"         {return new token("BOOL", yytext(), yyline);}
-"FLOAT"           {return new token("BOOL", yytext(), yyline);}
+// "INT"             {return new token("INT", yytext(), yyline);}
+// "CHAR"            {return new token("CHAR", yytext(), yyline);}
+// "BOOLEAN"         {return new token("BOOLEAN", yytext(), yyline);}
+// "FLOAT"           {return new token("FLOAT", yytext(), yyline);}
 "USES"            {return new token("USES", yytext(), yyline);}
 \"{TEXT}\"        {return new token("LITERAL", yytext(), yyline);}
+
+{REAL}        { return new token("NUMBER", yytext(), yyline); }
 
 // To accept hex
 {HEX}             {return new token("NUMBER", yytext(), yyline);}
 
-// To accept integers with exp
-{INTEXP}          {return new token("NUMBER", yytext(), yyline);}
+{OCT}         { return new token("NUMBER_OCT", yytext(), yyline); }
 
-// To accept decimals with exp
-{FLOEXP}          {return new token("NUMBER", yytext(), yyline);}
+{INT}         { return new token("ERROR", yytext(), yyline); }
 
 \'{CHAR}\'        {return new token("LITERAL", yytext(), yyline);}
 "+"               {return new token("OP_SUM", yytext(), yyline);}

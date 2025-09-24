@@ -1,0 +1,28 @@
+(* Numeros en base 10 validos *)
+0.0
+7.0
+10.0
+123.45;
+
+(* NO VALIDOS*)
+124
+1.
+.5
+
+(* Octales: empiezan con 0 y usan 0–7 *)
+o1 = 075;
+o2 = 00;
+
+(* Hexadecimales: 0x/0X + [0-9a-fA-F] *)
+h1 = 0x1A;
+h2 = 0Xff;
+
+(* Reales con punto: dígitos a ambos lados del punto *)
+r1 = 5.0;
+r2 = 0.5;
+r3 = 123.456;
+
+(* Notación científica *)
+e1 = 3e5;
+e2 = 1.5e-4;
+e3 = 10E+2;

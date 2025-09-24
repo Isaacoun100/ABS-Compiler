@@ -20,7 +20,7 @@ public class Main {
             Reader reader;
             // If the user marks a one then the default file would be used
             if ("1".equals(opt)) {
-                reader = new FileReader("untitled/src/pruebas/test1.txt"); // untitled/src/test.txt
+                reader = new FileReader("untitled/src/pruebas/test7.txt"); // untitled/src/test.txt
                 absScanner scanner = new absScanner(reader);
                 lexAn(scanner);
             }
