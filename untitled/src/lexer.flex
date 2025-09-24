@@ -13,13 +13,21 @@ import obj.token;
 %ignorecase
 
 // Variables for the rules
-REAL = [0-9]+\.[0-9]+([eE][+-]?[0-9]+)?
-INT  = [0-9]+
-OCT  = 0[0-7]+
-HEX  = 0[xX][0-9a-fA-F]+
+// REAL = [0-9]+\.[0-9]+([eE][+-]?[0-9]+)?
+// INT  = [0-9]+
 // HEX =       [0-9]+[xX][0-9a-fA-F]+
 // INTEXP =    [0-9]+([eE][+-]?[0-9]+)?
 // FLOEXP =    [0-9]+\.[0-9]+([eE][+-]?[0-9]+)?
+
+OCT  = 0[0-7]+
+HEX  = 0[xX][0-9a-fA-F]+
+
+INT           = [0-9]+
+REAL         = [0-9]+\.[0-9]+
+SCI_INT       = {INT}[eE][+-]?{INT}
+SCI_FLOAT     = {REAL}[eE][+-]?{INT}
+NUMBER        = {SCI_FLOAT}|{SCI_INT}|{REAL}
+
 ID   =      [A-Za-z_][A-Za-z0-9_]{0,126}
 TEXT =      [a-zA-Z0-9_\n]*
 CHAR =      [a-zA-Z0-9_\n]
@@ -84,12 +92,14 @@ CHAR =      [a-zA-Z0-9_\n]
 "USES"            {return new token("USES", yytext(), yyline);}
 \"{TEXT}\"        {return new token("LITERAL", yytext(), yyline);}
 
-{REAL}        { return new token("NUMBER", yytext(), yyline); }
+// {REAL}        { return new token("NUMBER", yytext(), yyline); }
+{NUMBER}      { return new token("NUMBER", yytext(), yyline); }
 
 // To accept hex
 {HEX}             {return new token("NUMBER", yytext(), yyline);}
-
-{OCT}         { return new token("NUMBER_OCT", yytext(), yyline); }
+// {INTEXP}          {return new token("NUMBER", yytext(), yyline);}
+{OCT}         { return new token("NUMBER", yytext(), yyline); }
+// {FLOEXP}          {return new token("NUMBER", yytext(), yyline);}
 
 {INT}         { return new token("ERROR", yytext(), yyline); }
 
