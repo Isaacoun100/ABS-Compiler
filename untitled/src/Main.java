@@ -1,45 +1,36 @@
 import java.io.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import obj.token;
 
 public class Main {
     
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
 
-        // Main loop
-        while(true){
+        // 1) obtener path del archivo a procesar
+        Path path = (args.length > 0) 
+            ? Paths.get(args[0])
+            : Paths.get("untitled/src/pruebas/test1.txt");   // <-- cambia si tu default es otro
 
-            // An easy GUI was added to provide the code to scan
-            java.util.Scanner optIn = new java.util.Scanner(System.in);
-            System.out.println("¿Cómo quieres ingresar el código?");
-            System.out.println("  [1] Usar archivo de prueba (test.txt)");
-            System.out.println("  [2] Escribir por consola (termina con EOF)");
-            System.out.print("Opción: ");
-            String opt = optIn.nextLine().trim();
+        path = path.toAbsolutePath().normalize();
 
-            Reader reader;
-            // If the user marks a one then the default file would be used
-            if ("1".equals(opt)) {
-                reader = new FileReader("untitled/src/pruebas/test1.txt"); // untitled/src/test.txt
-                absScanner scanner = new absScanner(reader);
-                lexAn(scanner);
-            }
-
-            // If the user selects the second option then they'll be able to write the code
-            else if("2".equals(opt)){
-                System.out.println("Escribe tu código y finaliza con EOF (Ctrl+Z y Enter en Windows, Ctrl+D en macOS/Linux):");
-                reader = new InputStreamReader(System.in);
-                absScanner scanner = new absScanner(reader);
-                lexAn(scanner);
-            }
-
-            // If the user marks anything other than 1 or 2
-            else {
-                System.out.println("Por favor escribe una opción válida");
-                // break; //Se quito para que el ciclo funcione correctamente, y no tenga que volver a ejecutar
-            }
-
+        // 2) mensaje claro en consola
+        System.out.println(
+            "Se está ejecutando el archivo \"" + path.getFileName() + "\" en: " + path.getParent());
+        System.out.println("-----------------------------------------------------");
+        // 3) abrir, escanear y reportar
+        try (Reader reader = new BufferedReader(new FileReader(path.toFile()))) {
+        absScanner scanner = new absScanner(reader);
+        lexAn(scanner);   // <-- tu lógica de agregado/impresión
+        } catch (FileNotFoundException e) {
+        System.err.println("No se encontró el archivo: " + path);
+        System.exit(1);
+        } catch (IOException e) {
+        System.err.println("Error leyendo el archivo: " + e.getMessage());
+        System.exit(2);
         }
+            System.out.println();
     }
 
     //----------------------------------------------------------------------------------//
