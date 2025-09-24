@@ -10,6 +10,7 @@ import obj.token;
 %column
 %public
 %type token
+%ignorecase
 
 // Variables for the rules
 HEX =       [0-9]+[xX][0-9a-fA-F]+
@@ -88,7 +89,7 @@ CHAR =      [a-zA-Z0-9_\n]
 // To accept decimals with exp
 {FLOEXP}          {return new token("NUMBER", yytext(), yyline);}
 
-\'{CHAR}\'        {return new token("LITERAl", yytext(), yyline);}
+\'{CHAR}\'        {return new token("LITERAL", yytext(), yyline);}
 "+"               {return new token("OP_SUM", yytext(), yyline);}
 ">"               {return new token("OP_GREATER", yytext(), yyline);}
 "++"              {return new token("OP_INCREASE", yytext(), yyline);}

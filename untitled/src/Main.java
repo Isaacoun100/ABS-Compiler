@@ -3,6 +3,7 @@ import java.util.*;
 import obj.token;
 
 public class Main {
+    
     public static void main(String[] args) throws Exception {
 
         // Main loop
@@ -19,7 +20,7 @@ public class Main {
             Reader reader;
             // If the user marks a one then the default file would be used
             if ("1".equals(opt)) {
-                reader = new FileReader("src/test.txt");
+                reader = new FileReader("untitled/src/pruebas/test1.txt"); // untitled/src/test.txt
                 absScanner scanner = new absScanner(reader);
                 lexAn(scanner);
             }
@@ -41,54 +42,61 @@ public class Main {
         }
     }
 
-    // This method receives the absScanner class and then it scans the file
+    //----------------------------------------------------------------------------------//
+    // Metodo que normaliza el value segun su tipo de token para que sea case-insensitive
+    //----------------------------------------------------------------------------------//
+    private static String normalize(String type, String value) {
+        if ("IDENTIFIER".equals(type) || "LITERAL".equals(type)) 
+            return value.toLowerCase(Locale.ROOT); 
+        return value.toUpperCase(Locale.ROOT); //Palabras reservadas en mayuscula
+    }
+    //----------------------------------------------------------------------------//
+    // Metodo que realiza el analisis lexico
+    // Imprime los resultados del analisis en el formato token, value, lines, count
+    //----------------------------------------------------------------------------//
     static void lexAn(absScanner scanner) throws IOException {
-
-        // The identified tokens will be on a list
         List<token> tokenList = new ArrayList<>();
         token t;
+        while ((t = scanner.yylex()) != null) tokenList.add(t); 
 
-        // To add the tokens to the list
-        while ((t = scanner.yylex()) != null) {
-            tokenList.add(t);
+        Map<String, Map<Integer, Integer>> agg = new LinkedHashMap<>();
+        
+        Map<String, String> displayByKey = new HashMap<>();
+        Map<String, String> typeByKey = new HashMap<>();
+
+        for (token tk : tokenList) {
+            String type = tk.getTokenName();
+            String norm = normalize(type, tk.getValue());
+            String key  = type + "|" + norm;
+
+            typeByKey.putIfAbsent(key, type);
+            String display = ("IDENTIFIER".equals(type)  || "LITERAL".equals(type))? norm : norm.toUpperCase(Locale.ROOT);
+            displayByKey.putIfAbsent(key, display);
+
+            agg.computeIfAbsent(key, k -> new LinkedHashMap<>())
+            .merge(tk.getLine() + 1, 1, Integer::sum);
         }
 
-        Set<String> printed = new HashSet<>();
+        // imprime en orden de aparición
+        for (Map.Entry<String, Map<Integer, Integer>> entry : agg.entrySet()) {
+            String key     = entry.getKey();
+            String type    = typeByKey.get(key);
+            String display = displayByKey.get(key);
+            Map<Integer, Integer> lineCounts = entry.getValue();
 
-        for (token currentToken : tokenList) {
-            String key = "%s|%s".formatted(currentToken.getTokenName(), currentToken.getValue());
-
-            if (!printed.contains(key)) {
-                printed.add(key);
-
-                // Count occurrences per line
-                Map<Integer, Integer> lineCounts = new LinkedHashMap<>();
-                int count = 0;
-
-                for (token other : tokenList) {
-                    if (other.getTokenName().equals(currentToken.getTokenName()) &&
-                            other.getValue().equals(currentToken.getValue())) {
-
-                        lineCounts.put(other.getLine(),
-                                lineCounts.getOrDefault(other.getLine(), 0) + 1);
-                        count++;
-                    }
-                }
-
-                // Build formatted line list
-                List<String> formattedLines = new ArrayList<>();
-                for (Map.Entry<Integer, Integer> e : lineCounts.entrySet()) {
-                    if (e.getValue() > 1) {
-                        formattedLines.add("%d(%d)".formatted(e.getKey(), e.getValue()));
-                    } else {
-                        formattedLines.add(String.valueOf(e.getKey()));
-                    }
-                }
-
-                System.out.printf("Token: %s, Value: %s, Lines: %s, Count: %d%n", currentToken.getTokenName(), currentToken.getValue(), formattedLines, count);
+            // Coloca la cantidad de veces que aparece un token en cierta linea en la lista de lineas
+            int total = 0; 
+            List<String> formattedLines = new ArrayList<>();
+            for (Map.Entry<Integer, Integer> e : lineCounts.entrySet()) {
+                int line = e.getKey();     
+                int count = e.getValue();
+                total += count;
+                formattedLines.add(count > 1 ? (line + "(" + count + ")") : String.valueOf(line));
             }
-        }
 
+            System.out.printf("Token: %s, Value: %s, Lines: %s, Count: %d%n",
+                    type, display, formattedLines, total);
+        }
     }
 
 }

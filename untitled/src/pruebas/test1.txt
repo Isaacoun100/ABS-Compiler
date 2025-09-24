@@ -1,0 +1,14 @@
+x = 2;
+y = 3;    X AND Y 
+
+abSolute
+
+ABSOLUTE
+
+Absolute ABsolute ABSolute ABSOlute ABSOLute ABSOLUte ABSOLUTe 
+
+hola Hola HOla HOLa HOLA hOLA hoLA holA 
+
+k = "hola"
+
+"HOLA"
