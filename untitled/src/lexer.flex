@@ -29,8 +29,8 @@ SCI_FLOAT     = {REAL}[eE][+-]?{INT}
 NUMBER        = {SCI_FLOAT}|{SCI_INT}|{REAL}
 
 ID   =      [A-Za-z_][A-Za-z0-9_]{0,126}
-TEXT =      [a-zA-Z0-9_\n]*
-CHAR =      [a-zA-Z0-9_\n]
+TEXT =      [a-zA-Z0-9_ ]*
+CHAR =      [a-zA-Z0-9_ ]
 %% // Rules
 
 "ABSOLUTE"        {return new token("ABSOLUTE", yytext(), yyline);}
@@ -104,6 +104,9 @@ CHAR =      [a-zA-Z0-9_\n]
 {INT}         { return new token("ERROR", yytext(), yyline); }
 
 \'{CHAR}\'        {return new token("LITERAL", yytext(), yyline);}
+“{TEXT}”          { return new token("LITERAL", yytext(), yyline); }
+‘{CHAR}’          { return new token("LITERAL", yytext(), yyline); }
+
 "+"               {return new token("OP_SUM", yytext(), yyline);}
 ">"               {return new token("OP_GREATER", yytext(), yyline);}
 "++"              {return new token("OP_INCREASE", yytext(), yyline);}
@@ -129,5 +132,5 @@ CHAR =      [a-zA-Z0-9_\n]
 {ID}              {return new token("IDENTIFIER", yytext(), yyline);}
 "{" [^}]* "}"     { /* Inline comment */ }
 "(*" .*? "*)"     { /* Multiblock comment */ }
-[' '\t\r\n]+      { /* Ignore */ }
+[ \t\r\n]+      { /* Ignore */ }
 .                 { return new token("ERROR", yytext(), yyline); }

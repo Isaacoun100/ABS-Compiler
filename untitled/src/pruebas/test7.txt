@@ -27,4 +27,8 @@
 "hola
 como estas"
 
-"coco" 
+"Un coco" 
+
+"c"
+'c'
+'Holaaa'
