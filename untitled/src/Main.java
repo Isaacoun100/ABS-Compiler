@@ -12,7 +12,7 @@ public class Main {
         // Esto es para que despues podamos ingresar el archivo de codigo de manera distinta
         Path path = (args.length > 0) 
             ? Paths.get(args[0])
-            : Paths.get("untitled/src/pruebas/test7.txt"); 
+            : Paths.get("untitled/src/pruebas/test.txt"); 
 
         path = path.toAbsolutePath().normalize();
 

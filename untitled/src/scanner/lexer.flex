@@ -1,4 +1,5 @@
 // Main code
+package scanner; 
 import obj.token;
 // This object will contain the token name and line where is located
 
@@ -12,96 +13,86 @@ import obj.token;
 %type token
 %ignorecase
 
-// Variables for the rules
-// REAL = [0-9]+\.[0-9]+([eE][+-]?[0-9]+)?
-// INT  = [0-9]+
-// HEX =       [0-9]+[xX][0-9a-fA-F]+
-// INTEXP =    [0-9]+([eE][+-]?[0-9]+)?
-// FLOEXP =    [0-9]+\.[0-9]+([eE][+-]?[0-9]+)?
-
 OCT  = 0[0-7]+
 HEX  = 0[xX][0-9a-fA-F]+
 
 INT           = [0-9]+
-REAL         = [0-9]+\.[0-9]+
+REAL          = {INT}\.{INT}
 SCI_INT       = {INT}[eE][+-]?{INT}
 SCI_FLOAT     = {REAL}[eE][+-]?{INT}
-NUMBER        = {SCI_FLOAT}|{SCI_INT}|{REAL}
+NUMBER        = {SCI_FLOAT}|{SCI_INT}|{REAL}|{INT}
 
 ID   =      [A-Za-z_][A-Za-z0-9_]{0,126}
 TEXT =      [a-zA-Z0-9_ ]*
 CHAR =      [a-zA-Z0-9_ ]
 %% // Rules
 
-"ABSOLUTE"        {return new token("ABSOLUTE", yytext(), yyline);}
-"CONST"           {return new token("CONST", yytext(), yyline);}
-"DOWNTO"          {return new token("DOWNTO", yytext(), yyline);}
-"FUNCTION"        {return new token("FUNCTION", yytext(), yyline);}
-"INTERFACE"       {return new token("INTERFACE", yytext(), yyline);}
-"OBJECT"          {return new token("OBJECT", yytext(), yyline);}
-"RECORD"          {return new token("RECORD", yytext(), yyline);}
-"THEN"            {return new token("THEN", yytext(), yyline);}
-"VAR"             {return new token("VAR", yytext(), yyline);}
-"AND"             {return new token("AND", yytext(), yyline);}
-"CONSTRUCTOR"     {return new token("CONSTRUCTOR", yytext(), yyline);}
-"ELSE"            {return new token("ELSE", yytext(), yyline);}
-"GOTO"            {return new token("GOTO", yytext(), yyline);}
-"INTERRUPT"       {return new token("INTERRUPT", yytext(), yyline);}
-"OF"              {return new token("OF", yytext(), yyline);}
-"REPEAT"          {return new token("REPEAT", yytext(), yyline);}
-"TO"              {return new token("TO", yytext(), yyline);}
-"VIRTUAL"         {return new token("VIRTUAL", yytext(), yyline);}
-"ARRAY"           {return new token("ARRAY", yytext(), yyline);}
-"DESTRUCTOR"      {return new token("DESTRUCTOR", yytext(), yyline);}
-"END"             {return new token("END", yytext(), yyline);}
-"IF"              {return new token("IF", yytext(), yyline);}
-"LABEL"           {return new token("LABEL", yytext(), yyline);}
-"OR"              {return new token("OR", yytext(), yyline);}
-"SET"             {return new token("SET", yytext(), yyline);}
-"TYPE"            {return new token("TYPE", yytext(), yyline);}
-"ASM"             {return new token("ASM", yytext(), yyline);}
-"EXTERNAL"        {return new token("EXTERNAL", yytext(), yyline);}
-"FILE"            {return new token("FILE", yytext(), yyline);}
-"IMPLEMENTATION"  {return new token("IMPLEMENTATION", yytext(), yyline);}
-"MOD"             {return new token("MOD", yytext(), yyline);}
-"PACKED"          {return new token("PACKED", yytext(), yyline);}
-"SHL"             {return new token("SHL", yytext(), yyline);}
-"UNIT"            {return new token("UNIT", yytext(), yyline);}
-"BEGIN"           {return new token("BEGIN", yytext(), yyline);}
-"DIV"             {return new token("DIV", yytext(), yyline);}
-"FOR"             {return new token("FOR", yytext(), yyline);}
-"IN"              {return new token("IN", yytext(), yyline);}
-"NIL"             {return new token("NIL", yytext(), yyline);}
-"PRIVATE"         {return new token("PRIVATE", yytext(), yyline);}
-"WHILE"           {return new token("WHILE", yytext(), yyline);}
-"WITH"            {return new token("WITH", yytext(), yyline);}
-"SHR"             {return new token("SHR", yytext(), yyline);}
-"UNTIL"           {return new token("UNTIL", yytext(), yyline);}
-"XOR"             {return new token("XOR", yytext(), yyline);}
-"CASE"            {return new token("CASE", yytext(), yyline);}
-"DO"              {return new token("DO", yytext(), yyline);}
-"FORWARD"         {return new token("FORWARD", yytext(), yyline);}
-"INLINE"          {return new token("INLINE", yytext(), yyline);}
-"NOT"             {return new token("NOT", yytext(), yyline);}
-"PROCEDURE"       {return new token("PROCEDURE", yytext(), yyline);}
-"STRING"          {return new token("STRING", yytext(), yyline);}
-// "INT"             {return new token("INT", yytext(), yyline);}
-// "CHAR"            {return new token("CHAR", yytext(), yyline);}
-// "BOOLEAN"         {return new token("BOOLEAN", yytext(), yyline);}
-// "FLOAT"           {return new token("FLOAT", yytext(), yyline);}
-"USES"            {return new token("USES", yytext(), yyline);}
+"ABSOLUTE"        {return new token("KEYWORD", yytext(), yyline);}
+"CONST"           {return new token("KEYWORD", yytext(), yyline);}
+"DOWNTO"          {return new token("KEYWORD", yytext(), yyline);}
+"FUNCTION"        {return new token("KEYWORD", yytext(), yyline);}
+"INTERFACE"       {return new token("KEYWORD", yytext(), yyline);}
+"OBJECT"          {return new token("KEYWORD", yytext(), yyline);}
+"RECORD"          {return new token("KEYWORD", yytext(), yyline);}
+"THEN"            {return new token("KEYWORD", yytext(), yyline);}
+"VAR"             {return new token("KEYWORD", yytext(), yyline);}
+"AND"             {return new token("KEYWORD", yytext(), yyline);}
+"CONSTRUCTOR"     {return new token("KEYWORD", yytext(), yyline);}
+"ELSE"            {return new token("KEYWORD", yytext(), yyline);}
+"GOTO"            {return new token("KEYWORD", yytext(), yyline);}
+"INTERRUPT"       {return new token("KEYWORD", yytext(), yyline);}
+"OF"              {return new token("KEYWORD", yytext(), yyline);}
+"REPEAT"          {return new token("KEYWORD", yytext(), yyline);}
+"TO"              {return new token("KEYWORD", yytext(), yyline);}
+"VIRTUAL"         {return new token("KEYWORD", yytext(), yyline);}
+"ARRAY"           {return new token("KEYWORD", yytext(), yyline);}
+"DESTRUCTOR"      {return new token("KEYWORD", yytext(), yyline);}
+"END"             {return new token("KEYWORD", yytext(), yyline);}
+"IF"              {return new token("KEYWORD", yytext(), yyline);}
+"LABEL"           {return new token("KEYWORD", yytext(), yyline);}
+"OR"              {return new token("KEYWORD", yytext(), yyline);}
+"SET"             {return new token("KEYWORD", yytext(), yyline);}
+"TYPE"            {return new token("KEYWORD", yytext(), yyline);}
+"ASM"             {return new token("KEYWORD", yytext(), yyline);}
+"EXTERNAL"        {return new token("KEYWORD", yytext(), yyline);}
+"FILE"            {return new token("KEYWORD", yytext(), yyline);}
+"IMPLEMENTATION"  {return new token("KEYWORD", yytext(), yyline);}
+"MOD"             {return new token("KEYWORD", yytext(), yyline);}
+"PACKED"          {return new token("KEYWORD", yytext(), yyline);}
+"SHL"             {return new token("KEYWORD", yytext(), yyline);}
+"UNIT"            {return new token("KEYWORD", yytext(), yyline);}
+"BEGIN"           {return new token("KEYWORD", yytext(), yyline);}
+"DIV"             {return new token("KEYWORD", yytext(), yyline);}
+"FOR"             {return new token("KEYWORD", yytext(), yyline);}
+"IN"              {return new token("KEYWORD", yytext(), yyline);}
+"NIL"             {return new token("KEYWORD", yytext(), yyline);}
+"PRIVATE"         {return new token("KEYWORD", yytext(), yyline);}
+"WHILE"           {return new token("KEYWORD", yytext(), yyline);}
+"WITH"            {return new token("KEYWORD", yytext(), yyline);}
+"SHR"             {return new token("KEYWORD", yytext(), yyline);}
+"UNTIL"           {return new token("KEYWORD", yytext(), yyline);}
+"XOR"             {return new token("KEYWORD", yytext(), yyline);}
+"CASE"            {return new token("KEYWORD", yytext(), yyline);}
+"DO"              {return new token("KEYWORD", yytext(), yyline);}
+"FORWARD"         {return new token("KEYWORD", yytext(), yyline);}
+"INLINE"          {return new token("KEYWORD", yytext(), yyline);}
+"NOT"             {return new token("KEYWORD", yytext(), yyline);}
+"PROCEDURE"       {return new token("KEYWORD", yytext(), yyline);}
+"STRING"          {return new token("KEYWORD", yytext(), yyline);}
+"INT"             {return new token("KEYWORD", yytext(), yyline);}
+"CHAR"            {return new token("KEYWORD", yytext(), yyline);}
+"REAL"            {return new token("KEYWORD", yytext(), yyline);}
+"READ"            {return new token("KEYWORD", yytext(), yyline);}
+"WRITE"            {return new token("KEYWORD", yytext(), yyline);}
+"USES"            {return new token("KEYWORD", yytext(), yyline);}
+
 \"{TEXT}\"        {return new token("LITERAL", yytext(), yyline);}
 
-// {REAL}        { return new token("NUMBER", yytext(), yyline); }
-{NUMBER}      { return new token("NUMBER", yytext(), yyline); }
-
-// To accept hex
 {HEX}             {return new token("NUMBER", yytext(), yyline);}
-// {INTEXP}          {return new token("NUMBER", yytext(), yyline);}
-{OCT}         { return new token("NUMBER", yytext(), yyline); }
-// {FLOEXP}          {return new token("NUMBER", yytext(), yyline);}
 
-{INT}         { return new token("ERROR", yytext(), yyline); }
+{OCT}             { return new token("NUMBER", yytext(), yyline); }
+
+{NUMBER}          { return new token("NUMBER", yytext(), yyline); }
 
 \'{CHAR}\'        {return new token("LITERAL", yytext(), yyline);}
 “{TEXT}”          { return new token("LITERAL", yytext(), yyline); }
