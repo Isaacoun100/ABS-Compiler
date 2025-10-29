@@ -98,28 +98,29 @@ CHAR =      [a-zA-Z0-9_ ]
 “{TEXT}”          { return new token("LITERAL", yytext(), yyline); }
 ‘{CHAR}’          { return new token("LITERAL", yytext(), yyline); }
 
-"+"               {return new token("OP_SUM", yytext(), yyline);}
-">"               {return new token("OP_GREATER", yytext(), yyline);}
-"++"              {return new token("OP_INCREASE", yytext(), yyline);}
-":"               {return new token("OP_COLON", yytext(), yyline);}
-"-"               {return new token("OP_MINUS", yytext(), yyline);}
-"<="              {return new token("OP_LESSEQUAL", yytext(), yyline);}
-"--"              {return new token("OP_DECREASE", yytext(), yyline);}
-"."               {return new token("OP_PERIOD", yytext(), yyline);}
-"*"               {return new token("OP_MULT", yytext(), yyline);}
-">="              {return new token("OP_GREATEREQUAL", yytext(), yyline);}
-"("               {return new token("OP_OPENPARENTHESIS", yytext(), yyline);}
-"^"               {return new token("OP_POWER", yytext(), yyline);}
-"/"               {return new token("OP_SLASH", yytext(), yyline);}
-"="               {return new token("OP_EQUALS", yytext(), yyline);}
-")"               {return new token("OR_CLOSEPARENTHESIS", yytext(), yyline);}
-"**"              {return new token("OP_DOUBLEASTERISK", yytext(), yyline);}
-"<>"              {return new token("OP_TYPE", yytext(), yyline);}
-","               {return new token("OP_COMMA", yytext(), yyline);}
-"["               {return new token("OP_OPENBRACKET", yytext(), yyline);}
-"<"               {return new token("OP_LESS", yytext(), yyline);}
-";"               {return new token("OP_SEMICOLON", yytext(), yyline);}
-"]"               {return new token("OP_CLOSEBRACKET", yytext(), yyline);}
+"+"               {return new token("OPERATOR", yytext(), yyline);}
+">"               {return new token("OPERATOR", yytext(), yyline);}
+"++"              {return new token("OPERATOR", yytext(), yyline);}
+":"               {return new token("OPERATOR", yytext(), yyline);}
+"-"               {return new token("OPERATOR", yytext(), yyline);}
+"<="              {return new token("OPERATOR", yytext(), yyline);}
+"--"              {return new token("OPERATOR", yytext(), yyline);}
+"."               {return new token("OPERATOR", yytext(), yyline);}
+"*"               {return new token("OPERATOR", yytext(), yyline);}
+">="              {return new token("OPERATOR", yytext(), yyline);}
+"("               {return new token("OPERATOR", yytext(), yyline);}
+"^"               {return new token("OPERATOR", yytext(), yyline);}
+"/"               {return new token("OPERATOR", yytext(), yyline);}
+"="               {return new token("OPERATOR", yytext(), yyline);}
+")"               {return new token("OPERATOR", yytext(), yyline);}
+"**"              {return new token("OPERATOR", yytext(), yyline);}
+"<>"              {return new token("OPERATOR", yytext(), yyline);}
+","               {return new token("OPERATOR", yytext(), yyline);}
+"["               {return new token("OPERATOR", yytext(), yyline);}
+"<"               {return new token("OPERATOR", yytext(), yyline);}
+";"               {return new token("OPERATOR", yytext(), yyline);}
+"]"               {return new token("OPERATOR", yytext(), yyline);}
+
 {ID}              {return new token("IDENTIFIER", yytext(), yyline);}
 "{" [^}]* "}"     { /* Inline comment */ }
 "(*" .*? "*)"     { /* Multiblock comment */ }
