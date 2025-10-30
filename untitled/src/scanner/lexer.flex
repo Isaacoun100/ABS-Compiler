@@ -17,7 +17,6 @@ import parser.sym;
 
 %{
   
-
   private Symbol sym(int id) {
     return new Symbol(id, yyline+1, yycolumn+1);
   }
@@ -36,7 +35,7 @@ SCI_INT       = {INT}[eE][+-]?{INT}
 SCI_FLOAT     = {REAL}[eE][+-]?{INT}
 NUMBER        = {SCI_FLOAT}|{SCI_INT}|{REAL}|{INT}
 
-ID   =      [A-Za-z_][A-Za-z0-9_]{0,126}
+
 TEXT =      [a-zA-Z0-9_ ]*
 CHAR =      [a-zA-Z0-9_ ]
 
@@ -222,6 +221,13 @@ BLOCKCOM   = "(*" .*? "*)"
 /* Identificadores */
 {ID}                  { return sym(sym.ID, yytext()); }
 
+[A-Za-z_][A-Za-z0-9_]* {
+  if (yytext().length() > 127)
+    return new token("ERROR", yytext(), yyline);
+  else
+    return new token("IDENTIFIER", yytext(), yyline);
+}
+
 /* Comentarios y espacios */
 {INLINECOM}           { /* ignore */ }
 {BLOCKCOM}            { /* ignore */ }
@@ -229,3 +235,10 @@ BLOCKCOM   = "(*" .*? "*)"
 
 /* Cualquier otro char = error léxico */
 .                     { return sym(sym.ERROR, yytext()); }
+
+
+
+// "{" [^}]* "}"     { /* Inline comment */ }
+// "(*" .*? "*)"     { /* Multiblock comment */ }
+// [ \t\r\n]+      { /* Ignore */ }
+// .                 { return new token("ERROR", yytext(), yyline); }
