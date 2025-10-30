@@ -145,7 +145,7 @@ type_spec ::= TINT | TREAL | TSTRING | TCHAR ;
 
 return_stmt ::= ID ASSIGN expr SEMI ;
 
-func_block ::= BEGIN decls_opt stmt_list return_stmt END
+func_block ::= BEGIN decls_opt stmt_list return_stmt END ; 
 
 proc_block ::= BEGIN decls_opt stmt_list END ;
 
