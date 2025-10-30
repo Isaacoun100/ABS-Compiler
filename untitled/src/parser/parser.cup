@@ -1,6 +1,15 @@
+//======================================================================================================= 
+
+// Para que los archivos Parser.java y sym.java se creen dentro del paquete parser. 
 package parser;
 
+//Para poder importar colecciones de java dentro de nuestro .cup 
 import java.util.*;
+
+//En este bloque [13-20], lo que hace es declarar un campo público del parser para poder ir acumu-
+//lando los mensajes de error sintácticos, entonces, en el override, tenemos el msg, que es
+//mensaje generado por cup, y también info, que es donde se va a guardar la posición del to-
+//ken que da problema, en synErrors se acumula los errores. 
 
 parser code {:
   
@@ -11,6 +20,13 @@ parser code {:
   }
 :};
 
+//================================================================================================================ 
+
+//En esta sección, lo que hacemos es un listado de todos los tokens del lexer, dicho lexer, los devuelve como
+//"sym.ALGO", simplemente se hace una declaración de terminal para cada bloque de tokens, por ejemplo el primero 
+// [28], es para palabras reservadas y de control, la segunda [29] es para los tipos de datos, y así hay una para
+// operadores, comparaciones y signos, literales.....
+
 terminal PROGRAM, BEGIN, END, VAR, FUNCTION, PROCEDURE, IF, THEN, ELSE, WHILE, DO, FOR, TO, READ, WRITE;
 terminal TINT, TREAL, TSTRING, TCHAR;
 terminal ASSIGN, INC, DEC, PLUS, MINUS, TIMES, DIVIDE, MOD, INTDIV;
@@ -20,7 +36,26 @@ terminal ID, INT_LIT, REAL_LIT, HEX_LIT, STR_LIT, CHAR_LIT;
 terminal UMINUS;
 terminal ERROR;
 
-non terminal program, main_block, decls_opt, stmt_list, stmt, expr, bExpr;
+//================================================================================================================ 
+
+//Acá se definen los nombres de los simbolos sintacticos, osea, los no terminales, que construirán las producciones
+//enotonces definimos nuestros LHS, osea, los lados izquierdos de las producciones, cup asigna tipos y espacios en las
+//tablas internas, esto evita errores, pues si se usa un no terminal en una producción, pero no fue declarado. cup dará 
+//un fallo de generación
+
+non terminal program, main_block, decls_opt, globals, decl, type_spec;
+non terminal funcs_opt, func_list, func, proc, param_secs, param_sec, id_list, block;
+non terminal stmt_list, stmt, expr, bExpr;
+non terminal func_block, proc_block, return_stmt;
+non terminal arg_list_one, args_opt, args_plus, write_args;
+
+// ======================================Definición de procedencia========================================================================== 
+
+//Es donde se define el orden de mayor prioridad, una forma de decirle a cup como resolver conflictos de expresiones 
+//infijas; que operador se aplica primero y como se agrupa cuando hay repetición, osea sin esto, las grámaticas suelen 
+//causar conflictos de shift/reduce
+//Se leen de arriba (menor prioridad) hacia abajo (mayor prioridad)
+
 
 precedence left OR;
 precedence left AND;
@@ -29,21 +64,172 @@ precedence left PLUS, MINUS;
 precedence left TIMES, DIVIDE, MOD, INTDIV;
 precedence right UMINUS;
 
+// =====================================Estructura general del programa =========================================================================== 
+
+//Estructura general del programa:
+//   PROGRAM Nombre
+//  [Globales]
+//   [Funciones/Procedimientos]
+//  BEGIN ... END
+
+
+// Esto le dice a cup que la raíz del lenguaje es el no terminal program
+
 start with program;
 
-program ::= PROGRAM ID main_block ;
-main_block ::= BEGIN stmt_list END ;
+//
+//program ::= obliga a que el archivo empiece con la palabra PROGRAM, luego un nombre ID, y despúes el 
+//            bloque principal 
+//decls_opt = globales opcionales
+//funcs_opt = funciones/procedimientos opcionales
+//main_block ::= es el main que va en medio del BEGIN y END, y dentro debe haber un stmt_list, osea, la 
+//              lista de sentencias.  
+//stmt_list ::=  dentro de esta se hace una definición recursiva que significa una o más sentencias, osea
+//              se toma la sentencia anterior, y se acumula la nueva. 
 
+
+program ::= PROGRAM ID decls_opt funcs_opt main_block ;
+main_block ::= BEGIN stmt_list END ;
 stmt_list ::= stmt_list stmt | stmt ;
+
+// ==================================== Tipos de sentencias aceptadas ============================================================================ 
+
+// ----------------------------Variables Globales--------------------------------------------------------------------
+
+//   Permite declarar variables globales ANTES del main.
+
+//  Sintaxis soportada (estilo Pascal):
+//     VAR a, b: INT;
+//     VAR msg: STRING;
+
+//  - `decls_opt` = sección de globales opcional
+//   - `globals`   = 1..n declaraciones
+//  - `decl`      = una declaración con lista de IDs y un tipo
+//   - `id_list`   = a, b, c
+//   - `type_spec` = TINT | TREAL | TSTRING | TCHAR
+
+decls_opt ::= globals | /* vacío */ ;
+
+globals ::= globals decl | decl ;
+
+decl ::= VAR id_list COLON type_spec SEMI ;
+
+id_list ::= id_list COMMA ID | ID ;
+
+type_spec ::= TINT | TREAL | TSTRING | TCHAR ;
+
+//================================================================================================================ 
+
+// ----------------------------Funciones--------------------------------------------------------------------
+
+//   Permite definir funciones y procedimientos ANTES del main.
+
+//   Sintaxis soportada:
+//   FUNCTION Suma(a, b: INT): INT;
+//     BEGIN
+//      Suma := a + b;
+//     END
+
+//     PROCEDURE Show(x: INT);
+//     BEGIN
+//       write(x);
+//     END
+
+//   - `funcs_opt`  = sección opcional
+//   - `func_list`  = 1..n definiciones (func o proc)
+//   - `func`       = FUNCTION ... : tipo ; block  |  PROCEDURE ... ; block
+//   - `param_secs` = (a,b: INT; c: REAL) | vacío
+//   - `param_sec`  = id_list : type_spec
+//   - `block`      = BEGIN stmt_list END   (reutilizable)
+
+
+return_stmt ::= ID ASSIGN expr SEMI ;
+
+func_block ::= BEGIN decls_opt stmt_list return_stmt END
+
+proc_block ::= BEGIN decls_opt stmt_list END ;
+
+funcs_opt ::= func_list | /* vacío */ ;
+
+func_list ::= func_list func | func ;
+
+func ::= FUNCTION ID LPAREN param_secs RPAREN COLON type_spec SEMI func_block ;
+
+proc ::= PROCEDURE ID LPAREN param_secs RPAREN SEMI proc_block ;
+
+// Parámetros: (a,b: INT; c: REAL) o vacío 
+param_secs ::= param_secs SEMI param_sec | param_sec | /* vacío */ ;
+
+param_sec  ::= id_list COLON type_spec ;
+
+// Bloque reutilizable para funciones/procedimientos, también se puede usar para el if o while 
+
+block ::= BEGIN stmt_list END ;
+
+// ================================================================================================================ 
+
+// ------------------------------------------------------------------------------------------------
+
+// stmt ::=
+//       ID ASSIGN expr SEMI
+//     | READ SEMI
+//     | WRITE LPAREN expr RPAREN SEMI
+//     | IF bExpr THEN BEGIN stmt_list END
+//     | WHILE bExpr DO BEGIN stmt_list END
+//     | SEMI // vacío permisivo 
+//     ;
+
+//   - Asignación:       x := <expr> ;
+//   - Lectura         :   READ ;
+//   - Escritura:        write(<expr>);
+//   - IF:               IF <bExpr> THEN <bloque>
+//   - WHILE:            WHILE <bExpr> DO <bloque>
+//   - Vacía:            ;   (no-op; útil para tolerancia)
+
 
 stmt ::=
     ID ASSIGN expr SEMI
   | READ SEMI
-  | WRITE LPAREN expr RPAREN SEMI
-  | IF bExpr THEN BEGIN stmt_list END
-  | WHILE bExpr DO BEGIN stmt_list END
-  | SEMI /* vacío permisivo */
+  | READ LPAREN expr RPAREN SEMI
+  | WRITE LPAREN write_args RPAREN SEMI
+  | ID LPAREN args_opt RPAREN SEMI
+  | IF bExpr THEN block
+  | IF bExpr THEN block ELSE block
+  | WHILE bExpr DO block
+  | FOR ID ASSIGN expr TO expr DO block
+  | SEMI //  vacío permisivo 
   ;
+
+// ================================================================================================================ 
+
+// Lista de argumentos: vacía o una lista de expresiones separadas por coma 
+
+args_opt  ::= /* vacío */ | args_plus ;
+
+args_plus ::= expr | args_plus COMMA expr ;
+
+write_args ::= expr | write_args COMMA expr ;
+
+
+// ----------------------------Expresiones booleandas--------------------------------------
+
+//    bExpr ::=
+//       expr EQ expr | expr NE expr | expr LT expr
+//     | expr LE expr | expr GT expr | expr GE expr
+//     | bExpr OR bExpr
+//     | bExpr AND bExpr
+//     | NOT bExpr
+//     | LPAREN bExpr RPAREN
+//     ;
+
+//   - Comparaciones entre expresiones aritméticas.
+//   - Conectores: OR / AND / NOT.
+//   - Paréntesis para agrupar.
+
+//  Precedencia (definida en "precedence"):
+//     AND > OR; comparadores por encima de ambos.
+//     `NOT` se aplica directamente sobre bExpr.
+
 
 bExpr ::=
     expr EQ expr | expr NE expr | expr LT expr | expr LE expr | expr GT expr | expr GE expr
@@ -52,6 +238,33 @@ bExpr ::=
   | NOT bExpr
   | LPAREN bExpr RPAREN
   ;
+
+// ================================================================================================================ 
+
+// ----------------------------Expresiones aritmeticas --------------------------------------
+
+//expr ::=
+//       expr PLUS expr
+//     | expr MINUS expr
+//     | expr TIMES expr
+//     | expr DIVIDE expr
+//     | expr MOD expr
+//     | expr INTDIV expr
+//     | MINUS expr %prec UMINUS
+//     | INT_LIT | REAL_LIT | HEX_LIT | STR_LIT | CHAR_LIT | ID
+//     | LPAREN expr RPAREN
+//     ;
+
+//   - Operadores binarios: +, -, *, /, MOD, DIV.
+//   - Menos unario: `-x` (%prec UMINUS) con mayor
+//     prioridad que los binarios (p.ej. `-a * b`
+//     se interpreta como `(-a) * b`).
+//   - Átomos: literales e identificadores.
+//   - Paréntesis para agrupar.
+
+//  Las ambigüedades se resuelven con el bloque
+//   `precedence` (niveles y asociatividad).
+
 
 expr ::=
     expr PLUS expr
@@ -63,4 +276,7 @@ expr ::=
   | MINUS expr %prec UMINUS
   | INT_LIT | REAL_LIT | HEX_LIT | STR_LIT | CHAR_LIT | ID
   | LPAREN expr RPAREN
+  | ID LPAREN args_opt RPAREN
   ;
+
+// ================================================================================================================ 
