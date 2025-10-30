@@ -1,0 +1,66 @@
+package parser;
+
+import java.util.*;
+
+parser code {:
+  
+  public ArrayList<String> synErrors = new ArrayList<>();
+  @Override public void report_error(String msg, Object info) {
+    java_cup.runtime.Symbol s = (java_cup.runtime.Symbol)info;
+    synErrors.add("Línea " + s.left + ": " + msg);
+  }
+:};
+
+terminal PROGRAM, BEGIN, END, VAR, FUNCTION, PROCEDURE, IF, THEN, ELSE, WHILE, DO, FOR, TO, READ, WRITE;
+terminal TINT, TREAL, TSTRING, TCHAR;
+terminal ASSIGN, INC, DEC, PLUS, MINUS, TIMES, DIVIDE, MOD, INTDIV;
+terminal EQ, GE, GT, LE, LT, NE, OR, AND, NOT;
+terminal LPAREN, RPAREN, LBRACK, RBRACK, COMMA, SEMI, COLON, DOT, CARET;
+terminal ID, INT_LIT, REAL_LIT, HEX_LIT, STR_LIT, CHAR_LIT;
+terminal UMINUS;
+terminal ERROR;
+
+non terminal program, main_block, decls_opt, stmt_list, stmt, expr, bExpr;
+
+precedence left OR;
+precedence left AND;
+precedence nonassoc EQ, NE, LT, LE, GT, GE;
+precedence left PLUS, MINUS;
+precedence left TIMES, DIVIDE, MOD, INTDIV;
+precedence right UMINUS;
+
+start with program;
+
+program ::= PROGRAM ID main_block ;
+main_block ::= BEGIN stmt_list END ;
+
+stmt_list ::= stmt_list stmt | stmt ;
+
+stmt ::=
+    ID ASSIGN expr SEMI
+  | READ SEMI
+  | WRITE LPAREN expr RPAREN SEMI
+  | IF bExpr THEN BEGIN stmt_list END
+  | WHILE bExpr DO BEGIN stmt_list END
+  | SEMI /* vacío permisivo */
+  ;
+
+bExpr ::=
+    expr EQ expr | expr NE expr | expr LT expr | expr LE expr | expr GT expr | expr GE expr
+  | bExpr OR bExpr
+  | bExpr AND bExpr
+  | NOT bExpr
+  | LPAREN bExpr RPAREN
+  ;
+
+expr ::=
+    expr PLUS expr
+  | expr MINUS expr
+  | expr TIMES expr
+  | expr DIVIDE expr
+  | expr MOD expr
+  | expr INTDIV expr
+  | MINUS expr %prec UMINUS
+  | INT_LIT | REAL_LIT | HEX_LIT | STR_LIT | CHAR_LIT | ID
+  | LPAREN expr RPAREN
+  ;

@@ -1,11 +1,8 @@
-abSolute
-
-ABSOLUTE
-
-Absolute ABsolute ABSolute ABSOlute ABSOLute ABSOLUte ABSOLUTe 
-
-hola Hola HOla HOLa HOLA hOLA hoLA holA 
-
-"hola"
-
-"HOLA"
+PROGRAM demo
+BEGIN
+  WRITE(1 + 2);
+  IF 3 < 5 THEN
+  BEGIN
+    WRITE(10 DIV 2);
+  END
+END
