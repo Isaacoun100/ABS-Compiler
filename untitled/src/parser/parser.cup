@@ -140,12 +140,11 @@ type_spec ::= TINT | TREAL | TSTRING | TCHAR ;
 //   - `func`       = FUNCTION ... : tipo ; block  |  PROCEDURE ... ; block
 //   - `param_secs` = (a,b: INT; c: REAL) | vacío
 //   - `param_sec`  = id_list : type_spec
-//   - `block`      = BEGIN stmt_list END   (reutilizable)
-
+//   - `block`      = BEGIN stmt_list END   (reutilizable) 
 
 return_stmt ::= ID ASSIGN expr SEMI ;
 
-func_block ::= BEGIN decls_opt stmt_list return_stmt END
+func_block ::= BEGIN decls_opt stmt_list return_stmt END ; 
 
 proc_block ::= BEGIN decls_opt stmt_list END ;
 
@@ -157,12 +156,12 @@ func ::= FUNCTION ID LPAREN param_secs RPAREN COLON type_spec SEMI func_block ;
 
 proc ::= PROCEDURE ID LPAREN param_secs RPAREN SEMI proc_block ;
 
-// Parámetros: (a,b: INT; c: REAL) o vacío 
+// Parámetros: (a,b: INT; c: REAL) o vacío  
 param_secs ::= param_secs SEMI param_sec | param_sec | /* vacío */ ;
 
 param_sec  ::= id_list COLON type_spec ;
 
-// Bloque reutilizable para funciones/procedimientos, también se puede usar para el if o while 
+// Bloque para volver a utilizar para funciones/procedimientos, también se puede usar para el if o while  
 
 block ::= BEGIN stmt_list END ;
 
