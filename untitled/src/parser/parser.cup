@@ -1,7 +1,8 @@
+package parser;
 //======================================================================================================= 
 
 // Para que los archivos Parser.java y sym.java se creen dentro del paquete parser. 
-package parser;
+
 
 //Para poder importar colecciones de java dentro de nuestro .cup 
 import java.util.*;

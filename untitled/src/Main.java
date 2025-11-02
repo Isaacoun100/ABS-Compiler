@@ -9,7 +9,7 @@ public class Main {
         // Si no pasan ruta, usa un archivo de prueba:
         Path path = (args.length > 0)
                 ? Paths.get(args[0])
-                : Paths.get("pruebas/test2.txt");   // cámbialo a .abs si quieres
+                : Paths.get("untitled/src/pruebas/test1.txt");   
 
         path = path.toAbsolutePath().normalize();
         System.out.println("Ejecutando: " + path);
@@ -17,11 +17,10 @@ public class Main {
 
         try (Reader reader = new BufferedReader(new FileReader(path.toFile()))) {
             absScanner lexer = new absScanner(reader);
+            @SuppressWarnings("deprecation")
             Parser parser = new Parser(lexer);
-
-            // Lanza el análisis sintáctico
             Object result = parser.parse().value;
-            System.out.println("✓ Parseo completado sin errores sintácticos.");
+            System.out.println("✓ AST/resultado: " + result);
 
             // Si definiste synErrors en parser.cup, puedes imprimirlos:
             if (!parser.synErrors.isEmpty()) {
