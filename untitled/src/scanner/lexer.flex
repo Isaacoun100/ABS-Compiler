@@ -27,8 +27,8 @@ import parser.sym;
 
 //MACROS 
 
-OCT  = 0[0-7]+
-HEX  = 0[xX][0-9a-fA-F]+
+OCT           = 0[0-7]+
+HEX           = 0[xX][0-9a-fA-F]+
 INT           = [0-9]+
 REAL          = {INT}\.{INT}
 SCI_INT       = {INT}[eE][+-]?{INT}
@@ -159,13 +159,20 @@ CHAR =      [a-zA-Z0-9_ ]
 "VAR"             { return sym(sym.VAR); }
 "WHILE"           { return sym(sym.WHILE); }
 
-"INT"             { return sym(sym.INT); }
-"REAL"            { return sym(sym.REAL); }
-"STRING"          { return sym(sym.STRING); }
-"CHAR"            { return sym(sym.CHAR); }
+"INT"             { return sym(sym.TINT); }
+"REAL"            { return sym(sym.TREAL); }
+"STRING"          { return sym(sym.TSTRING); }
+"CHAR"            { return sym(sym.TCHAR); }
 
 "READ"            { return sym(sym.READ); }
 "WRITE"           { return sym(sym.WRITE); }
+
+"MOD"             { return sym(sym.MOD); }      
+"DIV"             { return sym(sym.INTDIV); }  
+
+"OR"              { return sym(sym.OR); }
+"AND"             { return sym(sym.AND); }
+"NOT"             { return sym(sym.NOT); }
 
 // las que no necesitamos le vamos a poner KEYWORD para simplificar el parser
 "ABSOLUTE"        { return sym(sym.KEYWORD); }
@@ -174,7 +181,6 @@ CHAR =      [a-zA-Z0-9_ ]
 "INTERFACE"       { return sym(sym.KEYWORD); }
 "OBJECT"          { return sym(sym.KEYWORD); }
 "RECORD"          { return sym(sym.KEYWORD); }
-"AND"             { return sym(sym.KEYWORD); }
 "CONSTRUCTOR"     { return sym(sym.KEYWORD); }
 "GOTO"            { return sym(sym.KEYWORD); }
 "INTERRUPT"       { return sym(sym.KEYWORD); }
@@ -184,18 +190,15 @@ CHAR =      [a-zA-Z0-9_ ]
 "ARRAY"           { return sym(sym.KEYWORD); }
 "DESTRUCTOR"      { return sym(sym.KEYWORD); }
 "LABEL"           { return sym(sym.KEYWORD); }
-"OR"              { return sym(sym.KEYWORD); }
 "SET"             { return sym(sym.KEYWORD); }
 "TYPE"            { return sym(sym.KEYWORD); }
 "ASM"             { return sym(sym.KEYWORD); }
 "EXTERNAL"        { return sym(sym.KEYWORD); }
 "FILE"            { return sym(sym.KEYWORD); }
 "IMPLEMENTATION"  { return sym(sym.KEYWORD); }
-"MOD"             { return sym(sym.KEYWORD); }
 "PACKED"          { return sym(sym.KEYWORD); }
 "SHL"             { return sym(sym.KEYWORD); }
 "UNIT"            { return sym(sym.KEYWORD); }
-"DIV"             { return sym(sym.KEYWORD); }
 "IN"              { return sym(sym.KEYWORD); }
 "NIL"             { return sym(sym.KEYWORD); }
 "PRIVATE"         { return sym(sym.KEYWORD); }
@@ -206,7 +209,6 @@ CHAR =      [a-zA-Z0-9_ ]
 "CASE"            { return sym(sym.KEYWORD); }
 "FORWARD"         { return sym(sym.KEYWORD); }
 "INLINE"          { return sym(sym.KEYWORD); }
-"NOT"             { return sym(sym.KEYWORD); }
 "USES"            { return sym(sym.KEYWORD); }
 
 //OPERADORES
@@ -236,10 +238,17 @@ CHAR =      [a-zA-Z0-9_ ]
 "^"             { return sym(sym.CARET); }
 
 /* Literales */
-{HEX}           { return sym(sym.HEX_LIT, yytext()); }
-{OCT}           { return sym(sym.OCT_LIT, yytext()); }
 
-{NUMBER}        { return sym(sym.NUM_LIT, yytext()); }
+{HEX}       { return sym(sym.HEX_LIT, yytext()); }
+{OCT}       { return sym(sym.OCT_LIT, yytext()); }
+
+{NUMBER} {
+  String t = yytext();
+  if (t.indexOf('.') >= 0 || t.indexOf('e') >= 0 || t.indexOf('E') >= 0)
+    return sym(sym.REAL_LIT, t);   // reales y reales con exponente
+  else
+    return sym(sym.INT_LIT, t);    // enteros decimales y cientificos de entero no existen aqui
+}
 
 \"{TEXT}\"      { return sym(sym.STR_LIT, yytext()); } 
 \'{CHAR}\'      { return sym(sym.CHAR_LIT, yytext()); }

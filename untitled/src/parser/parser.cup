@@ -33,9 +33,9 @@ terminal TINT, TREAL, TSTRING, TCHAR;
 terminal ASSIGN, INC, DEC, PLUS, MINUS, TIMES, DIVIDE, MOD, INTDIV;
 terminal EQ, GE, GT, LE, LT, NE, OR, AND, NOT;
 terminal LPAREN, RPAREN, LBRACK, RBRACK, COMMA, SEMI, COLON, DOT, CARET;
-terminal ID, INT_LIT, REAL_LIT, HEX_LIT, STR_LIT, CHAR_LIT;
+terminal ID, INT_LIT, REAL_LIT, HEX_LIT, STR_LIT, CHAR_LIT, OCT_LIT;
 terminal UMINUS;
-terminal ERROR;
+terminal ERROR, KEYWORD;
 
 //================================================================================================================ 
 
@@ -251,7 +251,7 @@ bExpr ::=
 //     | expr MOD expr
 //     | expr INTDIV expr
 //     | MINUS expr %prec UMINUS
-//     | INT_LIT | REAL_LIT | HEX_LIT | STR_LIT | CHAR_LIT | ID
+//     | INT_LIT | REAL_LIT | HEX_LIT | STR_LIT | CHAR_LIT | OCT_LIT | ID
 //     | LPAREN expr RPAREN
 //     ;
 
