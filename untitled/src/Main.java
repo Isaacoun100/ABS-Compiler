@@ -9,7 +9,7 @@ public class Main {
         // Si no pasan ruta, usa un archivo de prueba:
         Path path = (args.length > 0)
                 ? Paths.get(args[0])
-                : Paths.get("untitled/src/pruebas/test1.txt");   
+                : Paths.get("untitled/src/pruebas/test1.txt");
 
         path = path.toAbsolutePath().normalize();
         System.out.println("Ejecutando: " + path);
@@ -19,21 +19,49 @@ public class Main {
             absScanner lexer = new absScanner(reader);
             @SuppressWarnings("deprecation")
             Parser parser = new Parser(lexer);
-            Object result = parser.parse().value;
-            System.out.println("✓ AST/resultado: " + result);
 
-            // Si definiste synErrors en parser.cup, puedes imprimirlos:
-            if (!parser.synErrors.isEmpty()) {
-                System.out.println("Mensajes del parser:");
-                for (String m : parser.synErrors) System.out.println(" - " + m);
+            // Intentar parsear
+            try {
+                Object result = parser.parse().value;
+
+                // Verificar si hubo errores sintácticos
+                if (parser.synErrors.isEmpty()) {
+                    System.out.println("✓ Análisis sintáctico completado sin errores");
+                    System.out.println("✓ AST/resultado: " + result);
+                } else {
+                    System.out.println("✗ Se encontraron " + parser.synErrors.size() + " error(es) sintáctico(s):\n");
+                    for (String error : parser.synErrors) {
+                        System.out.println("  - " + error);
+                    }
+                    System.out.println("\nNota: El parser intentó recuperarse de los errores.");
+                }
+
+            } catch (Exception e) {
+                // Si hay excepción, aún así mostrar los errores acumulados
+                System.out.println("✗ Error durante el parseo\n");
+
+                if (!parser.synErrors.isEmpty()) {
+                    System.out.println("Errores sintácticos detectados:");
+                    for (String error : parser.synErrors) {
+                        System.out.println("  - " + error);
+                    }
+                } else {
+                    // Si no hay errores en synErrors, mostrar la excepción
+                    System.out.println("  - " + e.getMessage());
+                    if (args.length > 0 && args[0].equals("--debug")) {
+                        e.printStackTrace();
+                    }
+                }
             }
+
         } catch (FileNotFoundException e) {
-            System.err.println("No se encontró el archivo: " + path);
+            System.err.println("✗ No se encontró el archivo: " + path);
             System.exit(1);
-        } catch (Exception e) {
-            System.err.println("Error durante el parseo: " + e.getMessage());
-            e.printStackTrace();
+        } catch (IOException e) {
+            System.err.println("✗ Error de lectura del archivo: " + e.getMessage());
             System.exit(2);
         }
+
+        System.out.println("-----------------------------------------------------");
     }
 }
