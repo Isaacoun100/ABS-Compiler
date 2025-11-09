@@ -14,7 +14,7 @@ public class sym {
   public static final int TSTRING = 19;
   public static final int GE = 31;
   public static final int TCHAR = 20;
-  public static final int UMINUS = 54;
+  public static final int UMINUS = 55;
   public static final int HEX_LIT = 51;
   public static final int SEMI = 44;
   public static final int LPAREN = 39;
@@ -22,6 +22,7 @@ public class sym {
   public static final int FOR = 13;
   public static final int MINUS = 25;
   public static final int WRITE = 16;
+  public static final int OCT_LIT = 54;
   public static final int RPAREN = 40;
   public static final int NOT = 38;
   public static final int AND = 37;
@@ -38,12 +39,12 @@ public class sym {
   public static final int DOT = 46;
   public static final int LE = 33;
   public static final int EOF = 0;
+  public static final int KEYWORD = 56;
   public static final int error = 1;
   public static final int PROGRAM = 2;
   public static final int MOD = 28;
   public static final int STR_LIT = 52;
   public static final int EQ = 30;
-  public static final int ERROR = 55;
   public static final int LBRACK = 41;
   public static final int TREAL = 18;
   public static final int TIMES = 26;
@@ -119,8 +120,9 @@ public class sym {
   "HEX_LIT",
   "STR_LIT",
   "CHAR_LIT",
+  "OCT_LIT",
   "UMINUS",
-  "ERROR"
+  "KEYWORD"
   };
 }
 
