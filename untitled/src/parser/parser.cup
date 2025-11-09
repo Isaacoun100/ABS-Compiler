@@ -1,31 +1,59 @@
 package parser;
-//======================================================================================================= 
+//=======================================================================================================
 
-// Para que los archivos Parser.java y sym.java se creen dentro del paquete parser. 
+// Para que los archivos Parser.java y sym.java se creen dentro del paquete parser.
 
-
-//Para poder importar colecciones de java dentro de nuestro .cup 
 import java.util.*;
+import java_cup.runtime.Symbol;
 
-//En este bloque [13-20], lo que hace es declarar un campo público del parser para poder ir acumu-
-//lando los mensajes de error sintácticos, entonces, en el override, tenemos el msg, que es
-//mensaje generado por cup, y también info, que es donde se va a guardar la posición del to-
-//ken que da problema, en synErrors se acumula los errores. 
-
+/* Aqui hacemos override a los errores que por defecto muestra cup para así
+ * poder distinguir entre los tipos de errores, lo cual hace más fácil reconocer
+ * los errores y seguimos la indicación sobre los errores
+ */
 parser code {:
-  
+
   public ArrayList<String> synErrors = new ArrayList<>();
-  @Override public void report_error(String msg, Object info) {
-    java_cup.runtime.Symbol s = (java_cup.runtime.Symbol)info;
-    synErrors.add("Línea " + s.left + ": " + msg);
+  private boolean errorRecovering = false;
+
+  @Override
+  public void report_error(String msg, Object info) {
+    // Solo reportar si no estamos ya en modo de recuperación
+    if (!errorRecovering) {
+      Symbol s = (Symbol) info;
+      synErrors.add("Línea " + s.left + ": " + msg);
+    }
+  }
+
+  // Reportamos errores de sintáxis
+  @Override
+  public void syntax_error(Symbol cur_token) {
+    // Reportar errores genéricos con información de línea
+    Symbol s = cur_token;
+    addError("Línea " + s.left + ": Error de sintaxis inesperado");
+  }
+
+  // Aquí nos recuperamos si recibimos cualquier error no captado anteriormente
+  @Override
+  public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
+    // Error fatal: no se pudo recuperar
+    Symbol s = cur_token;
+    addError("Línea " + s.left + ": Error fatal: no se puede recuperar del error de sintaxis");
+    // No lanzar excepción, solo reportar
+    done_parsing();
+  }
+
+  public void addError(String error) {
+    if (!synErrors.contains(error)) {
+      synErrors.add(error);
+    }
   }
 :};
 
-//================================================================================================================ 
+//================================================================================================================
 
 //En esta sección, lo que hacemos es un listado de todos los tokens del lexer, dicho lexer, los devuelve como
-//"sym.ALGO", simplemente se hace una declaración de terminal para cada bloque de tokens, por ejemplo el primero 
-// [28], es para palabras reservadas y de control, la segunda [29] es para los tipos de datos, y así hay una para
+//"sym.ALGO", simplemente se hace una declaración de terminal para cada bloque de tokens, por ejemplo el primero,
+// es para palabras reservadas y de control, la segunda es para los tipos de datos, y así hay una para
 // operadores, comparaciones y signos, literales.....
 
 terminal PROGRAM, BEGIN, END, VAR, FUNCTION, PROCEDURE, IF, THEN, ELSE, WHILE, DO, FOR, TO, READ, WRITE;
@@ -35,13 +63,13 @@ terminal EQ, GE, GT, LE, LT, NE, OR, AND, NOT;
 terminal LPAREN, RPAREN, LBRACK, RBRACK, COMMA, SEMI, COLON, DOT, CARET;
 terminal ID, INT_LIT, REAL_LIT, HEX_LIT, STR_LIT, CHAR_LIT, OCT_LIT;
 terminal UMINUS;
-terminal ERROR, KEYWORD;
+terminal KEYWORD;
 
-//================================================================================================================ 
+//================================================================================================================
 
 //Acá se definen los nombres de los simbolos sintacticos, osea, los no terminales, que construirán las producciones
 //enotonces definimos nuestros LHS, osea, los lados izquierdos de las producciones, cup asigna tipos y espacios en las
-//tablas internas, esto evita errores, pues si se usa un no terminal en una producción, pero no fue declarado. cup dará 
+//tablas internas, esto evita errores, pues si se usa un no terminal en una producción, pero no fue declarado. cup dará
 //un fallo de generación
 
 non terminal program, main_block, decls_opt, globals, decl, type_spec;
@@ -50,13 +78,12 @@ non terminal stmt_list, stmt, expr, bExpr;
 non terminal func_block, proc_block, return_stmt;
 non terminal arg_list_one, args_opt, args_plus, write_args;
 
-// ======================================Definición de procedencia========================================================================== 
+//================================================================================================================
 
-//Es donde se define el orden de mayor prioridad, una forma de decirle a cup como resolver conflictos de expresiones 
-//infijas; que operador se aplica primero y como se agrupa cuando hay repetición, osea sin esto, las grámaticas suelen 
+//Es donde se define el orden de mayor prioridad, una forma de decirle a cup como resolver conflictos de expresiones
+//infijas; que operador se aplica primero y como se agrupa cuando hay repetición, osea sin esto, las grámaticas suelen
 //causar conflictos de shift/reduce
 //Se leen de arriba (menor prioridad) hacia abajo (mayor prioridad)
-
 
 precedence left OR;
 precedence left AND;
@@ -65,7 +92,7 @@ precedence left PLUS, MINUS;
 precedence left TIMES, DIVIDE, MOD, INTDIV;
 precedence right UMINUS;
 
-// =====================================Estructura general del programa =========================================================================== 
+//================================================================================================================
 
 //Estructura general del programa:
 //   PROGRAM Nombre
@@ -73,29 +100,49 @@ precedence right UMINUS;
 //   [Funciones/Procedimientos]
 //  BEGIN ... END
 
-
+//================================================================================================================
 // Esto le dice a cup que la raíz del lenguaje es el no terminal program
 
 start with program;
 
-//
-//program ::= obliga a que el archivo empiece con la palabra PROGRAM, luego un nombre ID, y despúes el 
-//            bloque principal 
+// ==================== PROGRAM: Recuperación de errores a nivel principal ====================
+
+//program ::= obliga a que el archivo empiece con la palabra PROGRAM, luego un nombre ID, y despúes el
+//            bloque principal
 //decls_opt = globales opcionales
 //funcs_opt = funciones/procedimientos opcionales
-//main_block ::= es el main que va en medio del BEGIN y END, y dentro debe haber un stmt_list, osea, la 
-//              lista de sentencias.  
+//main_block ::= es el main que va en medio del BEGIN y END, y dentro debe haber un stmt_list, osea, la
+//              lista de sentencias.
 //stmt_list ::=  dentro de esta se hace una definición recursiva que significa una o más sentencias, osea
-//              se toma la sentencia anterior, y se acumula la nueva. 
+//              se toma la sentencia anterior, y se acumula la nueva.
+
+program ::=
+    PROGRAM ID decls_opt funcs_opt main_block
+  | PROGRAM error:e decls_opt funcs_opt main_block
+      {: parser.addError("Línea " + eleft + ": Error en declaración del programa, se esperaba un identificador"); :}
+  | error:e
+      {: parser.addError("Línea " + eleft + ": Error crítico: el programa debe comenzar con PROGRAM"); :}
+  ;
+
+// ==================== MAIN BLOCK: Errores en el cuerpo principal ====================
 
 
-program ::= PROGRAM ID decls_opt funcs_opt main_block ;
-main_block ::= BEGIN stmt_list END ;
-stmt_list ::= stmt_list stmt | stmt ;
+main_block ::=
+    BEGIN stmt_list END
+  | BEGIN error:e END
+      {: parser.addError("Línea " + eleft + ": Error en el cuerpo del programa principal"); :}
+  | BEGIN stmt_list error:e
+      {: parser.addError("Línea " + eleft + ": Falta END al final del programa"); :}
+  | error:e stmt_list END
+      {: parser.addError("Línea " + eleft + ": Falta BEGIN al inicio del programa principal"); :}
+  ;
 
-// ==================================== Tipos de sentencias aceptadas ============================================================================ 
+stmt_list ::=
+    stmt_list stmt
+  | stmt
+  ;
 
-// ----------------------------Variables Globales--------------------------------------------------------------------
+// ==================== VARIABLES GLOBALES: Errores en declaraciones ====================
 
 //   Permite declarar variables globales ANTES del main.
 
@@ -113,15 +160,23 @@ decls_opt ::= globals | /* vacío */ ;
 
 globals ::= globals decl | decl ;
 
-decl ::= VAR id_list COLON type_spec SEMI ;
+decl ::=
+    VAR id_list COLON type_spec SEMI
+  | VAR error:e SEMI
+      {: parser.addError("Línea " + eleft + ": Error en declaración de variable"); :}
+  | VAR id_list COLON type_spec error:e
+      {: parser.addError("Línea " + eleft + ": Falta ';' al final de la declaración"); :}
+  | VAR id_list error:e type_spec SEMI
+      {: parser.addError("Línea " + eleft + ": Falta ':' en la declaración de variable"); :}
+  ;
 
 id_list ::= id_list COMMA ID | ID ;
 
 type_spec ::= TINT | TREAL | TSTRING | TCHAR ;
 
-//================================================================================================================ 
+//================================================================================================================
 
-// ----------------------------Funciones--------------------------------------------------------------------
+// ==================== FUNCIONES Y PROCEDIMIENTOS ====================
 
 //   Permite definir funciones y procedimientos ANTES del main.
 
@@ -141,34 +196,47 @@ type_spec ::= TINT | TREAL | TSTRING | TCHAR ;
 //   - `func`       = FUNCTION ... : tipo ; block  |  PROCEDURE ... ; block
 //   - `param_secs` = (a,b: INT; c: REAL) | vacío
 //   - `param_sec`  = id_list : type_spec
-//   - `block`      = BEGIN stmt_list END   (reutilizable) 
+//   - `block`      = BEGIN stmt_list END   (reutilizable)
 
 return_stmt ::= ID ASSIGN expr SEMI ;
 
-func_block ::= BEGIN decls_opt stmt_list return_stmt END ; 
+func_block ::=
+    BEGIN decls_opt stmt_list return_stmt END
+  ;
 
-proc_block ::= BEGIN decls_opt stmt_list END ;
+proc_block ::=
+    BEGIN decls_opt stmt_list END
+  ;
 
 funcs_opt ::= func_list | /* vacío */ ;
 
-func_list ::= func_list func | func ;
+func_list ::= func_list func | func_list proc | func | proc ;
 
-func ::= FUNCTION ID LPAREN param_secs RPAREN COLON type_spec SEMI func_block ;
+func ::=
+    FUNCTION ID LPAREN param_secs RPAREN COLON type_spec SEMI func_block
+  | FUNCTION error:e SEMI func_block
+      {: parser.addError("Línea " + eleft + ": Error en la declaración de función"); :}
+  ;
 
-proc ::= PROCEDURE ID LPAREN param_secs RPAREN SEMI proc_block ;
+proc ::=
+    PROCEDURE ID LPAREN param_secs RPAREN SEMI proc_block
+  | PROCEDURE error:e SEMI proc_block
+      {: parser.addError("Línea " + eleft + ": Error en la declaración de procedimiento"); :}
+  ;
 
-// Parámetros: (a,b: INT; c: REAL) o vacío  
 param_secs ::= param_secs SEMI param_sec | param_sec | /* vacío */ ;
 
 param_sec  ::= id_list COLON type_spec ;
 
-// Bloque para volver a utilizar para funciones/procedimientos, también se puede usar para el if o while  
+block ::=
+    BEGIN stmt_list END
+  | BEGIN error:e END
+      {: parser.addError("Línea " + eleft + ": Error en el bloque de código"); :}
+  ;
 
-block ::= BEGIN stmt_list END ;
+//================================================================================================================
 
-// ================================================================================================================ 
-
-// ------------------------------------------------------------------------------------------------
+// ==================== SENTENCIAS: Recuperación detallada de errores ====================
 
 // stmt ::=
 //       ID ASSIGN expr SEMI
@@ -176,7 +244,7 @@ block ::= BEGIN stmt_list END ;
 //     | WRITE LPAREN expr RPAREN SEMI
 //     | IF bExpr THEN BEGIN stmt_list END
 //     | WHILE bExpr DO BEGIN stmt_list END
-//     | SEMI // vacío permisivo 
+//     | SEMI // vacío permisivo
 //     ;
 
 //   - Asignación:       x := <expr> ;
@@ -186,32 +254,88 @@ block ::= BEGIN stmt_list END ;
 //   - WHILE:            WHILE <bExpr> DO <bloque>
 //   - Vacía:            ;   (no-op; útil para tolerancia)
 
-
 stmt ::=
+    // Asignaciones
     ID ASSIGN expr SEMI
+  | ID ASSIGN expr error:e
+      {: parser.addError("Línea " + eleft + ": Falta ';' al final de la asignación"); :}
+  | ID error:e expr SEMI
+      {: parser.addError("Línea " + eleft + ": Falta ':=' en la asignación"); :}
+
+  // READ
   | READ SEMI
   | READ LPAREN expr RPAREN SEMI
+  | READ error:e
+      {: parser.addError("Línea " + eleft + ": Error en sentencia READ, falta ';'"); :}
+
+  // WRITE
   | WRITE LPAREN write_args RPAREN SEMI
+  | WRITE LPAREN write_args RPAREN error:e
+      {: parser.addError("Línea " + eleft + ": Falta ';' después de WRITE"); :}
+  | WRITE error:e SEMI
+      {: parser.addError("Línea " + eleft + ": Error en sentencia WRITE"); :}
+
+  // Llamadas a funciones/procedimientos
   | ID LPAREN args_opt RPAREN SEMI
+  | ID LPAREN args_opt RPAREN error:e
+      {: parser.addError("Línea " + eleft + ": Falta ';' después de la llamada"); :}
+
+  // IF statements
   | IF bExpr THEN block
   | IF bExpr THEN block ELSE block
+  | IF bExpr error:e block
+      {: parser.addError("Línea " + eleft + ": Falta THEN en estructura IF"); :}
+  | IF error:e THEN block
+      {: parser.addError("Línea " + eleft + ": Error en la condición del IF"); :}
+  | IF bExpr ID:i block
+      {: parser.addError("Línea " + ileft + ": Se esperaba THEN, se encontró identificador"); :}
+  | IF bExpr ELSE block
+      {: parser.addError("Error en estructura IF: falta THEN antes de ELSE"); :}
+
+  // WHILE statements
   | WHILE bExpr DO block
+  | WHILE bExpr error:e block
+      {: parser.addError("Línea " + eleft + ": Falta DO en estructura WHILE"); :}
+  | WHILE error:e DO block
+      {: parser.addError("Línea " + eleft + ": Error en la condición del WHILE"); :}
+  | WHILE bExpr ID:i block
+      {: parser.addError("Línea " + ileft + ": Se esperaba DO, se encontró identificador"); :}
+
+  // FOR statements
   | FOR ID ASSIGN expr TO expr DO block
-  | SEMI //  vacío permisivo 
+  | FOR ID ASSIGN expr TO expr error:e block
+      {: parser.addError("Línea " + eleft + ": Falta DO en estructura FOR"); :}
+  | FOR error:e DO block
+      {: parser.addError("Línea " + eleft + ": Error en la declaración del FOR"); :}
+  | FOR ID ASSIGN expr TO expr ID:i block
+      {: parser.addError("Línea " + ileft + ": Se esperaba DO, se encontró identificador"); :}
+
+  // Sentencia vacía
+  | SEMI
+
+  // Error genérico con recuperación hasta el siguiente punto y coma
+  | error:e SEMI
+      {: parser.addError("Línea " + eleft + ": Error de sintaxis en la sentencia"); :}
   ;
 
-// ================================================================================================================ 
-
-// Lista de argumentos: vacía o una lista de expresiones separadas por coma 
+//================================================================================================================
 
 args_opt  ::= /* vacío */ | args_plus ;
 
-args_plus ::= expr | args_plus COMMA expr ;
+args_plus ::=
+    expr
+  | args_plus COMMA expr
+  ;
 
-write_args ::= expr | write_args COMMA expr ;
+write_args ::=
+    expr
+  | write_args COMMA expr
+  ;
 
+//================================================================================================================
 
-// ----------------------------Expresiones booleandas--------------------------------------
+// ==================== EXPRESIONES BOOLEANAS (SIN conflictos) ====================
+
 
 //    bExpr ::=
 //       expr EQ expr | expr NE expr | expr LT expr
@@ -230,18 +354,22 @@ write_args ::= expr | write_args COMMA expr ;
 //     AND > OR; comparadores por encima de ambos.
 //     `NOT` se aplica directamente sobre bExpr.
 
-
 bExpr ::=
-    expr EQ expr | expr NE expr | expr LT expr | expr LE expr | expr GT expr | expr GE expr
+    expr EQ expr
+  | expr NE expr
+  | expr LT expr
+  | expr LE expr
+  | expr GT expr
+  | expr GE expr
   | bExpr OR bExpr
   | bExpr AND bExpr
   | NOT bExpr
   | LPAREN bExpr RPAREN
   ;
 
-// ================================================================================================================ 
+//================================================================================================================
 
-// ----------------------------Expresiones aritmeticas --------------------------------------
+// ==================== EXPRESIONES ARITMÉTICAS (SIN conflictos) ====================
 
 //expr ::=
 //       expr PLUS expr
@@ -274,9 +402,12 @@ expr ::=
   | expr MOD expr
   | expr INTDIV expr
   | MINUS expr %prec UMINUS
-  | INT_LIT | REAL_LIT | HEX_LIT | STR_LIT | CHAR_LIT | ID
+  | INT_LIT
+  | REAL_LIT
+  | HEX_LIT
+  | STR_LIT
+  | CHAR_LIT
+  | ID
   | LPAREN expr RPAREN
   | ID LPAREN args_opt RPAREN
   ;
-
-// ================================================================================================================ 
