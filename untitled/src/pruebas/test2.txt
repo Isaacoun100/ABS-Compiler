@@ -1,11 +1,15 @@
-AND      and
-
-AND
-
-
-hola
-
-
-And         hola
-
-hola
+PROGRAM P
+VAR a: INT; b: REAL; c: STRING; d: CHAR;
+BEGIN
+  IF a = 1 THEN
+  BEGIN
+    WHILE a < 3 DO BEGIN a := a + 1; END
+    FOR a := 1 TO 2 DO BEGIN WRITE(a); END
+    READ;
+    WRITE("ok");
+  END
+  ELSE
+  BEGIN
+    ; 
+  END
+END

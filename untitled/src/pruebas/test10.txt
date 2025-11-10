@@ -1,0 +1,10 @@
+PROGRAM P
+PROCEDURE Show(x: INT);
+BEGIN
+  VAR tmp: INT;
+  tmp := x;
+  WRITE(tmp);
+END
+BEGIN
+  Show(10);
+END

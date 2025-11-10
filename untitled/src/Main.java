@@ -9,7 +9,7 @@ public class Main {
         // Si no pasan ruta, usa un archivo de prueba:
         Path path = (args.length > 0)
                 ? Paths.get(args[0])
-                : Paths.get("untitled/src/pruebas/test1.txt");
+                : Paths.get("untitled/src/pruebas/test11.txt");
 
         path = path.toAbsolutePath().normalize();
         System.out.println("Ejecutando: " + path);

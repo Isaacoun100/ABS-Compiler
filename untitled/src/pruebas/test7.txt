@@ -1,34 +1,5 @@
-(* Numeros reales validos *)
-0.0
-7.0
-10.0
-123.45
-
-(* NO VALIDOS*)
-124
-1.
-.5
-
-(*Numeros octales*)
-076
-054
-
-(* Hexadecimales *)
-0x1A;
-0Xff;
-
-
-(* Notación científica *)
-3e5
-1.5e-4
-10E+2
--11*2000.69E-10
-
-"hola
-como estas"
-
-"Un coco" 
-
-"c"
-'c'
-'Holaaa'
+PROGRAM Main
+VAR a: INT; b: REAL; c: STRING; d: CHAR;
+BEGIN
+  a := 1; WRITE(b);
+END

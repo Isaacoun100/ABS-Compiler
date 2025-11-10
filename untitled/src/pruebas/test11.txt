@@ -1,0 +1,19 @@
+PROGRAM P
+FUNCTION F(x: INT; y: REAL): INT;
+BEGIN
+  VAR t: INT;
+  t := x;
+  F := t;
+END
+PROCEDURE Show2(a: INT; b: INT);
+BEGIN
+  WRITE(a); WRITE(b);
+END
+BEGIN
+  VAR r: INT;   
+  r := F(1, 2.0);
+  WRITE(F(r, 3.0));
+  Show2(10, 20);
+  READ;
+  READ(r);
+END

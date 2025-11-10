@@ -1,5 +1,4 @@
-(*Este comentario deberia ser ignorado*)
-
-{esta tambien}
-
-x = 3
+PROGRAM Main
+BEGIN
+  ;
+END

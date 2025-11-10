@@ -1,3 +1,14 @@
-x =                    2;      X AND 4
-
-87   = u
+PROGRAM P
+BEGIN
+  a := 42;
+  b := 5.0;
+  c := 3e5;
+  d := 6.02E23;
+  e := 0xFF;
+  f := 0755;
+  s := "hola";
+  ch := 'A';
+  s2 := "linea1
+linea2";       
+  ch2 := 'AB'; 
+END

@@ -72,11 +72,11 @@ terminal KEYWORD;
 //tablas internas, esto evita errores, pues si se usa un no terminal en una producción, pero no fue declarado. cup dará
 //un fallo de generación
 
-non terminal program, main_block, decls_opt, globals, decl, type_spec;
+non terminal program, main_block, decls_opt, type_spec;
 non terminal funcs_opt, func_list, func, proc, param_secs, param_sec, id_list, block;
 non terminal stmt_list, stmt, expr, bExpr;
 non terminal func_block, proc_block, return_stmt;
-non terminal arg_list_one, args_opt, args_plus, write_args;
+non terminal arg_list_one, args_opt, args_plus, write_args, var_sections, var_sections_tail, decl_items, decl_item, decl_items_tail;
 
 //================================================================================================================
 
@@ -90,6 +90,7 @@ precedence left AND;
 precedence nonassoc EQ, NE, LT, LE, GT, GE;
 precedence left PLUS, MINUS;
 precedence left TIMES, DIVIDE, MOD, INTDIV;
+precedence left INC, DEC;
 precedence right UMINUS;
 
 //================================================================================================================
@@ -156,17 +157,36 @@ stmt_list ::=
 //   - `id_list`   = a, b, c
 //   - `type_spec` = TINT | TREAL | TSTRING | TCHAR
 
-decls_opt ::= globals | /* vacío */ ;
 
-globals ::= globals decl | decl ;
 
-decl ::=
-    VAR id_list COLON type_spec SEMI
-  | VAR error:e SEMI
+decls_opt ::= var_sections | /* vacío */ ;
+
+
+var_sections ::=
+    VAR decl_items var_sections_tail
+  | VAR error:e SEMI var_sections_tail
       {: parser.addError("Línea " + eleft + ": Error en declaración de variable"); :}
-  | VAR id_list COLON type_spec error:e
+  ;
+
+
+var_sections_tail ::=
+    VAR decl_items var_sections_tail
+  | VAR error:e SEMI var_sections_tail
+      {: parser.addError("Línea " + eleft + ": Error en declaración de variable"); :}
+  | /* vacío */ ;
+
+
+decl_items ::= decl_item decl_items_tail ;
+
+decl_items_tail ::=
+     decl_item decl_items_tail
+  | /* vacío */ ;
+
+decl_item ::=
+    id_list COLON type_spec SEMI
+  | id_list COLON type_spec error:e
       {: parser.addError("Línea " + eleft + ": Falta ';' al final de la declaración"); :}
-  | VAR id_list error:e type_spec SEMI
+  | id_list error:e type_spec SEMI
       {: parser.addError("Línea " + eleft + ": Falta ':' en la declaración de variable"); :}
   ;
 
@@ -257,6 +277,7 @@ block ::=
 stmt ::=
     // Asignaciones
     ID ASSIGN expr SEMI
+  | ID ASSIGN bExpr SEMI   
   | ID ASSIGN expr error:e
       {: parser.addError("Línea " + eleft + ": Falta ';' al final de la asignación"); :}
   | ID error:e expr SEMI
@@ -410,4 +431,6 @@ expr ::=
   | ID
   | LPAREN expr RPAREN
   | ID LPAREN args_opt RPAREN
+  | expr INC
+  | expr DEC
   ;

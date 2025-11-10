@@ -1,0 +1,10 @@
+PROGRAM P
+FUNCTION Suma(a, b: INT): INT;
+BEGIN
+  VAR t: INT; u: REAL;
+  t := a + b;
+  Suma := t;
+END
+BEGIN
+  WRITE(Suma(3, 4));
+END

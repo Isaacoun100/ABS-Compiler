@@ -41,7 +41,7 @@ TEXT =      [a-zA-Z0-9_ ]*
 CHAR =      [a-zA-Z0-9_ ]
 
 ASSIGN_OP  = ":="
-WS         = [ \t\r\n]+
+WS         = [ \t\r\n\u00A0\u2007\u202F\uFEFF]+
 INLINECOM  = "{" [^]* "}"
 BLOCKCOM   = "(*" .*? "*)"
 
@@ -219,12 +219,14 @@ BLOCKCOM   = "(*" .*? "*)"
 ‘{CHAR}’             { return sym(sym.CHAR_LIT, yytext()); }
 */
 
+
 /* Identificadores */
 {ID}                  { return sym(sym.ID, yytext()); }
 
 /* Comentarios y espacios */
 {INLINECOM}           { /* ignore */ }
 {BLOCKCOM}            { /* ignore */ }
+\uFEFF               { /* ignore BOM */ }
 {WS}                  { /* ignore */ }
 
 /* Cualquier otro char = error léxico */
