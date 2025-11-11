@@ -16,6 +16,7 @@ public class Main {
         System.out.println("-----------------------------------------------------");
 
         try (Reader reader = new BufferedReader(new FileReader(path.toFile()))) {
+
             absScanner lexer = new absScanner(reader);
             @SuppressWarnings("deprecation")
             Parser parser = new Parser(lexer);
@@ -23,27 +24,15 @@ public class Main {
             try {
                 Object result = parser.parse().value;
 
-                // Separar errores por tipo usando el mensaje
-                ArrayList<String> lexErrors = new ArrayList<>();
-                ArrayList<String> synErrors = new ArrayList<>();
+                // Ahora los errores se obtienen directamente
+                ArrayList<String> lexErrors = lexer.lexErrors; // ← errores léxicos reales
+                ArrayList<String> synErrors = parser.synErrors; // ← errores sintácticos reales
 
-                for (String error : parser.synErrors) {
-                    // Si el mensaje contiene palabras clave de errores léxicos
-                    if (error.contains("Carácter no reconocido") ||
-                            error.contains("no reconocido") ||
-                            error.contains("String sin cerrar") ||
-                            error.contains("Comentario sin cerrar")) {
-                        lexErrors.add(error);
-                    } else {
-                        synErrors.add(error);
-                    }
-                }
-
-                // Mostrar resultados separados
                 if (lexErrors.isEmpty() && synErrors.isEmpty()) {
                     System.out.println("✓ Análisis completado sin errores");
                     System.out.println("✓ AST/resultado: " + result);
                 } else {
+
                     if (!lexErrors.isEmpty()) {
                         System.out.println("\n========== ERRORES LÉXICOS (" + lexErrors.size() + ") ==========");
                         for (String error : lexErrors) {
