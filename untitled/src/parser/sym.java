@@ -45,6 +45,7 @@ public class sym {
   public static final int MOD = 28;
   public static final int STR_LIT = 52;
   public static final int EQ = 30;
+  public static final int ERROR = 57;
   public static final int LBRACK = 41;
   public static final int TREAL = 18;
   public static final int TIMES = 26;
@@ -122,7 +123,8 @@ public class sym {
   "CHAR_LIT",
   "OCT_LIT",
   "UMINUS",
-  "KEYWORD"
+  "KEYWORD",
+  "ERROR"
   };
 }
 
