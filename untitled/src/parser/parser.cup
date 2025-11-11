@@ -4,7 +4,7 @@ package parser;
 // Para que los archivos Parser.java y sym.java se creen dentro del paquete parser.
 
 import java.util.*;
-import java_cup.runtime.Symbol;
+import java_cup.runtime.*;
 
 /* Aqui hacemos override a los errores que por defecto muestra cup para así
  * poder distinguir entre los tipos de errores, lo cual hace más fácil reconocer
@@ -27,10 +27,14 @@ parser code {:
   // Reportamos errores de sintáxis
   @Override
   public void syntax_error(Symbol cur_token) {
-    // Reportar errores genéricos con información de línea
+    if (cur_token.sym == sym.ERROR) {
+      return;
+    }
+
     Symbol s = cur_token;
     addError("Línea " + s.left + ": Error de sintaxis inesperado");
   }
+
 
   // Aquí nos recuperamos si recibimos cualquier error no captado anteriormente
   @Override
@@ -63,7 +67,7 @@ terminal EQ, GE, GT, LE, LT, NE, OR, AND, NOT;
 terminal LPAREN, RPAREN, LBRACK, RBRACK, COMMA, SEMI, COLON, DOT, CARET;
 terminal ID, INT_LIT, REAL_LIT, HEX_LIT, STR_LIT, CHAR_LIT, OCT_LIT;
 terminal UMINUS;
-terminal KEYWORD;
+terminal KEYWORD, ERROR;
 
 //================================================================================================================
 
@@ -152,10 +156,10 @@ stmt_list ::=
 //     VAR msg: STRING;
 
 //  - `decls_opt` = sección de globales opcional
-//   - `globals`   = 1..n declaraciones
+//  - `globals`   = 1..n declaraciones
 //  - `decl`      = una declaración con lista de IDs y un tipo
-//   - `id_list`   = a, b, c
-//   - `type_spec` = TINT | TREAL | TSTRING | TCHAR
+//  - `id_list`   = a, b, c
+//  - `type_spec` = TINT | TREAL | TSTRING | TCHAR
 
 
 
@@ -272,7 +276,7 @@ block ::=
 stmt ::=
     // Asignaciones
     ID ASSIGN expr SEMI
-  | ID ASSIGN bExpr SEMI   
+  | ID ASSIGN bExpr SEMI
   | ID ASSIGN expr error:e
       {: parser.addError("Línea " + eleft + ": Falta ';' al final de la asignación"); :}
   | ID error:e expr SEMI
@@ -332,6 +336,11 @@ stmt ::=
   // Error genérico con recuperación hasta el siguiente punto y coma
   | error:e SEMI
       {: parser.addError("Línea " + eleft + ": Error de sintaxis en la sentencia"); :}
+
+  // Recuperación específica para token ERROR (devuelto por el scanner)
+  | ERROR:lex SEMI
+      {: parser.addError("Línea " + ((Symbol)lex).left + ": Error léxico en la sentencia"); :}
+
   ;
 
 //================================================================================================================
@@ -428,4 +437,8 @@ expr ::=
   | ID LPAREN args_opt RPAREN
   | expr INC
   | expr DEC
+
+  // Recuperación específica para token ERROR (devuelto por el scanner)
+  | ERROR:lex
+        {: parser.addError("Línea " + ((Symbol)lex).left + ": Error léxico en expresión"); RESULT = null; :}
   ;
