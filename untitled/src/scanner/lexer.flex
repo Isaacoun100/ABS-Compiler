@@ -1,7 +1,8 @@
 // Main code
-package scanner; 
+package scanner;
 import java_cup.runtime.Symbol;
-import parser.sym;    
+import parser.sym;
+import java.util.ArrayList;
 
 %% // Declarations
 
@@ -16,13 +17,17 @@ import parser.sym;
 %type java_cup.runtime.Symbol
 
 %{
-
+  // ← AGREGAR ESTA LÍNEA:
+  public ArrayList<String> lexErrors = new ArrayList<>();
 
   private Symbol sym(int id) {
-    return new Symbol(id, yyline+1, yycolumn+1);
+      return new Symbol(id, yyline+1, yycolumn+1);
   }
   private Symbol sym(int id, Object val) {
-    return new Symbol(id, yyline+1, yycolumn+1, val);
+      return new Symbol(id, yyline+1, yycolumn+1, val);
+  }
+  private void addLexError(String msg) {
+      lexErrors.add("Línea " + (yyline + 1) + ", Columna " + (yycolumn + 1) + ": " + msg);
   }
 %}
 
@@ -228,4 +233,7 @@ BLOCKCOM   = "(*" .*? "*)"
 {WS}                  { /* ignore */ }
 
 /* Cualquier otro char = error léxico */
-.                     { return sym(sym.error, yytext()); }
+.                     {
+    addLexError("Carácter no reconocido: '" + yytext() + "'");
+    return sym(sym.error, yytext());
+}
