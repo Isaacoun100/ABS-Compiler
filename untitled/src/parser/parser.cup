@@ -38,13 +38,13 @@ parser code {:
   */
   @Override
   public void syntax_error(Symbol cur_token) {
-
-    if (cur_token.sym == sym.ERROR)
+    // No reportar errores si ya estamos en modo de recuperación o si es un token ERROR
+    if (cur_token.sym == sym.ERROR || errorRecovering)
       return;
 
-    Symbol s = cur_token;
-    addError("Línea " + s.left + ": Error de sintaxis inesperado");
-
+    // Silenciar este error si ya tenemos errores reportados por las reglas de recuperación
+    // Symbol s = cur_token;
+    // addError("Línea " + s.left + ": Error de sintaxis");
   }
 
 
@@ -58,7 +58,7 @@ parser code {:
   public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
     // Error fatal: no se pudo recuperar
     Symbol s = cur_token;
-    addError("Línea " + s.left + ": Error fatal: no se puede recuperar del error de sintaxis");
+    addError("Línea " + s.left + ": Error fatal de sintaxis");
     // No lanzar excepción, solo reportar
     done_parsing();
   }
@@ -129,9 +129,9 @@ start with program;
 program ::=
     PROGRAM ID decls_opt funcs_opt main_block
   | PROGRAM error:e decls_opt funcs_opt main_block
-      {: parser.addError("Línea " + eleft + ": Error en declaración del programa, se esperaba un identificador"); :}
+      {: parser.addError("Línea " + eleft + ": Error en la declaración del programa"); :}
   | error:e
-      {: parser.addError("Línea " + eleft + ": Error crítico: el programa debe comenzar con PROGRAM"); :}
+      {: parser.addError("Línea " + eleft + ": Error en la declaración del programa"); :}
   ;
 
 // ==================== MAIN BLOCK: Errores en el cuerpo principal ====================
@@ -140,11 +140,11 @@ program ::=
 main_block ::=
     BEGIN stmt_list END
   | BEGIN error:e END
-      {: parser.addError("Línea " + eleft + ": Error en el cuerpo del programa principal"); :}
+      {: parser.addError("Línea " + eleft + ": Error en el bloque principal"); :}
   | BEGIN stmt_list error:e
-      {: parser.addError("Línea " + eleft + ": Falta END al final del programa"); :}
+      {: parser.addError("Línea " + eleft + ": Falta END en el bloque principal"); :}
   | error:e stmt_list END
-      {: parser.addError("Línea " + eleft + ": Falta BEGIN al inicio del programa principal"); :}
+      {: parser.addError("Línea " + eleft + ": Falta BEGIN en el bloque principal"); :}
   ;
 
 stmt_list ::=
@@ -194,9 +194,9 @@ decl_items_tail ::=
 decl_item ::=
     id_list COLON type_spec SEMI
   | id_list COLON type_spec error:e
-      {: parser.addError("Línea " + eleft + ": Falta ';' al final de la declaración"); :}
+      {: parser.addError("Línea " + eleft + ": Falta punto y coma"); :}
   | id_list error:e type_spec SEMI
-      {: parser.addError("Línea " + eleft + ": Falta ':' en la declaración de variable"); :}
+      {: parser.addError("Línea " + eleft + ": Error en declaración de variable"); :}
   ;
 
 id_list ::= id_list COMMA ID | ID ;
@@ -239,13 +239,13 @@ func_list ::= func_list func | func_list proc | func | proc ;
 func ::=
     FUNCTION ID LPAREN param_secs RPAREN COLON type_spec SEMI func_block
   | FUNCTION error:e SEMI func_block
-      {: parser.addError("Línea " + eleft + ": Error en la declaración de función"); :}
+      {: parser.addError("Línea " + eleft + ": Error en declaración de función"); :}
   ;
 
 proc ::=
     PROCEDURE ID LPAREN param_secs RPAREN SEMI proc_block
   | PROCEDURE error:e SEMI proc_block
-      {: parser.addError("Línea " + eleft + ": Error en la declaración de procedimiento"); :}
+      {: parser.addError("Línea " + eleft + ": Error en declaración de procedimiento"); :}
   ;
 
 param_secs ::= param_secs SEMI param_sec | param_sec | /* vacío */ ;
@@ -255,7 +255,7 @@ param_sec  ::= id_list COLON type_spec ;
 block ::=
     BEGIN stmt_list END
   | BEGIN error:e END
-      {: parser.addError("Línea " + eleft + ": Error en el bloque de código"); :}
+      {: parser.addError("Línea " + eleft + ": Error en bloque de código"); :}
   ;
 
 //================================================================================================================
@@ -283,68 +283,68 @@ stmt ::=
     ID ASSIGN expr SEMI
   | ID ASSIGN bExpr SEMI
   | ID ASSIGN expr error:e
-      {: parser.addError("Línea " + eleft + ": Falta ';' al final de la asignación"); :}
+      {: parser.addError("Línea " + eleft + ": Falta punto y coma"); :}
   | ID error:e expr SEMI
-      {: parser.addError("Línea " + eleft + ": Falta ':=' en la asignación"); :}
+      {: parser.addError("Línea " + eleft + ": Error en asignación"); :}
 
   // READ
   | READ SEMI
   | READ LPAREN expr RPAREN SEMI
   | READ error:e
-      {: parser.addError("Línea " + eleft + ": Error en sentencia READ, falta ';'"); :}
+      {: parser.addError("Línea " + eleft + ": Error en READ"); :}
 
   // WRITE
   | WRITE LPAREN write_args RPAREN SEMI
   | WRITE LPAREN write_args RPAREN error:e
-      {: parser.addError("Línea " + eleft + ": Falta ';' después de WRITE"); :}
+      {: parser.addError("Línea " + eleft + ": Falta punto y coma"); :}
   | WRITE error:e SEMI
-      {: parser.addError("Línea " + eleft + ": Error en sentencia WRITE"); :}
+      {: parser.addError("Línea " + eleft + ": Error en WRITE"); :}
 
   // Llamadas a funciones/procedimientos
   | ID LPAREN args_opt RPAREN SEMI
   | ID LPAREN args_opt RPAREN error:e
-      {: parser.addError("Línea " + eleft + ": Falta ';' después de la llamada"); :}
+      {: parser.addError("Línea " + eleft + ": Falta punto y coma"); :}
 
   // IF statements
   | IF bExpr THEN block
   | IF bExpr THEN block ELSE block
   | IF bExpr error:e block
-      {: parser.addError("Línea " + eleft + ": Falta THEN en estructura IF"); :}
+      {: parser.addError("Línea " + eleft + ": Error en IF"); :}
   | IF error:e THEN block
-      {: parser.addError("Línea " + eleft + ": Error en la condición del IF"); :}
+      {: parser.addError("Línea " + eleft + ": Error en IF"); :}
   | IF bExpr ID:i block
-      {: parser.addError("Línea " + ileft + ": Se esperaba THEN, se encontró identificador"); :}
+      {: parser.addError("Línea " + ileft + ": Error en IF"); :}
   | IF bExpr ELSE block
-      {: parser.addError("Error en estructura IF: falta THEN antes de ELSE"); :}
+      {: parser.addError("Error en IF"); :}
 
   // WHILE statements
   | WHILE bExpr DO block
   | WHILE bExpr error:e block
-      {: parser.addError("Línea " + eleft + ": Falta DO en estructura WHILE"); :}
+      {: parser.addError("Línea " + eleft + ": Error en WHILE"); :}
   | WHILE error:e DO block
-      {: parser.addError("Línea " + eleft + ": Error en la condición del WHILE"); :}
+      {: parser.addError("Línea " + eleft + ": Error en WHILE"); :}
   | WHILE bExpr ID:i block
-      {: parser.addError("Línea " + ileft + ": Se esperaba DO, se encontró identificador"); :}
+      {: parser.addError("Línea " + ileft + ": Error en WHILE"); :}
 
   // FOR statements
   | FOR ID ASSIGN expr TO expr DO block
   | FOR ID ASSIGN expr TO expr error:e block
-      {: parser.addError("Línea " + eleft + ": Falta DO en estructura FOR"); :}
+      {: parser.addError("Línea " + eleft + ": Error en FOR"); :}
   | FOR error:e DO block
-      {: parser.addError("Línea " + eleft + ": Error en la declaración del FOR"); :}
+      {: parser.addError("Línea " + eleft + ": Error en FOR"); :}
   | FOR ID ASSIGN expr TO expr ID:i block
-      {: parser.addError("Línea " + ileft + ": Se esperaba DO, se encontró identificador"); :}
+      {: parser.addError("Línea " + ileft + ": Error en FOR"); :}
 
   // Sentencia vacía
   | SEMI
 
   // Error genérico con recuperación hasta el siguiente punto y coma
   | error:e SEMI
-      {: parser.addError("Línea " + eleft + ": Error de sintaxis en la sentencia"); :}
+      {: parser.addError("Línea " + eleft + ": Error de sintaxis"); :}
 
   // Recuperación específica para token ERROR (devuelto por el scanner)
   | ERROR:lex SEMI
-      {: parser.addError("Línea " + ((Symbol)lex).left + ": Error léxico en la sentencia"); :}
+      {: parser.addError("Línea " + ((Symbol)lex).left + ": Error léxico"); :}
 
   ;
 
@@ -445,5 +445,5 @@ expr ::=
 
   // Recuperación específica para token ERROR (devuelto por el scanner)
   | ERROR:lex
-        {: parser.addError("Línea " + ((Symbol)lex).left + ": Error léxico en expresión"); RESULT = null; :}
+        {: parser.addError("Línea " + ((Symbol)lex).left + ": Error léxico"); RESULT = null; :}
   ;
