@@ -7,16 +7,16 @@ import parser.Parser;
 public class Main {
 
     public static void main(String[] args) {
+        // Determine input file: use command line arg if provided, otherwise default
         Path path = (args.length > 0)
                 ? Paths.get(args[0])
-                : Paths.get("untitled/src/pruebas/test11.txt");
+                : Paths.get("untitled/src/pruebas/test.txt");
 
         path = path.toAbsolutePath().normalize();
         System.out.println("Ejecutando: " + path);
         System.out.println("-----------------------------------------------------");
 
         try (Reader reader = new BufferedReader(new FileReader(path.toFile()))) {
-
             absScanner lexer = new absScanner(reader);
             @SuppressWarnings("deprecation")
             Parser parser = new Parser(lexer);
@@ -24,45 +24,18 @@ public class Main {
             try {
                 Object result = parser.parse().value;
 
-                // Ahora los errores se obtienen directamente
-                ArrayList<String> lexErrors = lexer.lexErrors; // ← errores léxicos reales
-                ArrayList<String> synErrors = parser.synErrors; // ← errores sintácticos reales
+                // Collect any errors that occurred during lexical and syntactic analysis
+                ArrayList<String> lexErrors = lexer.lexErrors;
+                ArrayList<String> synErrors = parser.synErrors;
 
                 if (lexErrors.isEmpty() && synErrors.isEmpty()) {
-                    System.out.println("✓ Análisis completado sin errores");
-                    System.out.println("✓ AST/resultado: " + result);
+                    printSuccess(result);
                 } else {
-
-                    if (!lexErrors.isEmpty()) {
-                        System.out.println("\n========== ERRORES LÉXICOS (" + lexErrors.size() + ") ==========");
-                        for (String error : lexErrors) {
-                            System.out.println("  ✗ " + error);
-                        }
-                    }
-
-                    if (!synErrors.isEmpty()) {
-                        System.out.println("\n========== ERRORES SINTÁCTICOS (" + synErrors.size() + ") ==========");
-                        for (String error : synErrors) {
-                            System.out.println("  ✗ " + error);
-                        }
-                    }
-
-                    System.out.println("\n-----------------------------------------------------");
-                    System.out.println("Total: " + lexErrors.size() + " léxico(s), " +
-                            synErrors.size() + " sintáctico(s)");
+                    printErrors(lexErrors, synErrors);
                 }
 
             } catch (Exception e) {
-                System.out.println("✗ Error durante el parseo\n");
-
-                if (!parser.synErrors.isEmpty()) {
-                    System.out.println("Errores detectados:");
-                    for (String error : parser.synErrors) {
-                        System.out.println("  - " + error);
-                    }
-                } else {
-                    System.out.println("  - " + e.getMessage());
-                }
+                handleParseException(parser, e);
             }
 
         } catch (FileNotFoundException e) {
@@ -72,7 +45,37 @@ public class Main {
             System.err.println("✗ Error de lectura del archivo: " + e.getMessage());
             System.exit(2);
         }
+    }
 
-        System.out.println("-----------------------------------------------------");
+    private static void printSuccess(Object result) {
+        System.out.println("✓ Análisis completado sin errores");
+        System.out.println("✓ AST/resultado: " + result);
+    }
+
+    private static void printErrors(ArrayList<String> lexErrors, ArrayList<String> synErrors) {
+        if (!lexErrors.isEmpty()) {
+            System.out.println("\n========== ERRORES LÉXICOS (" + lexErrors.size() + ") ==========");
+            lexErrors.forEach(error -> System.out.println("  ✗ " + error));
+        }
+
+        if (!synErrors.isEmpty()) {
+            System.out.println("\n========== ERRORES SINTÁCTICOS (" + synErrors.size() + ") ==========");
+            synErrors.forEach(error -> System.out.println("  ✗ " + error));
+        }
+
+        System.out.println("\n-----------------------------------------------------");
+        System.out.println("Total: " + lexErrors.size() + " léxico(s), " +
+                synErrors.size() + " sintáctico(s)");
+    }
+
+    private static void handleParseException(Parser parser, Exception e) {
+        System.out.println("✗ Error durante el parseo\n");
+
+        if (!parser.synErrors.isEmpty()) {
+            System.out.println("Errores detectados:");
+            parser.synErrors.forEach(error -> System.out.println("  - " + error));
+        } else {
+            System.out.println("  - " + e.getMessage());
+        }
     }
 }

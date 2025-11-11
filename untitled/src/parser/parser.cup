@@ -12,9 +12,15 @@ import java_cup.runtime.*;
  */
 parser code {:
 
+  // Listado de errores del parser
   public ArrayList<String> synErrors = new ArrayList<>();
   private boolean errorRecovering = false;
 
+  /**
+  * Override for the report_error function to provide a better error message
+  * @param msg
+  * @param info
+  */
   @Override
   public void report_error(String msg, Object info) {
     // Solo reportar si no estamos ya en modo de recuperación
@@ -24,19 +30,30 @@ parser code {:
     }
   }
 
-  // Reportamos errores de sintáxis
+  /**
+  * Override for syntax_error function, which shouldn't be triggered considering
+  * that the scanning process happened before this, but in some instances it was
+  * triggered so we are just being cautious just in case we find one
+  * @param cur_token
+  */
   @Override
   public void syntax_error(Symbol cur_token) {
-    if (cur_token.sym == sym.ERROR) {
+
+    if (cur_token.sym == sym.ERROR)
       return;
-    }
 
     Symbol s = cur_token;
     addError("Línea " + s.left + ": Error de sintaxis inesperado");
+
   }
 
 
-  // Aquí nos recuperamos si recibimos cualquier error no captado anteriormente
+  /**
+  * Override for unrecovered_syntax_error, which again shouldn't be triggered considering
+  * that the scanning process happened before this, but in some instances it was
+  * triggered so we are just being cautious just in case we find one
+  * @param cur_token
+  */
   @Override
   public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
     // Error fatal: no se pudo recuperar
@@ -46,6 +63,11 @@ parser code {:
     done_parsing();
   }
 
+  /**
+  * When a semantic error is found we will invoke the addError function to add it to the
+  * list of semantic errors that we will display at the end of the compilation
+  * @param error
+  */
   public void addError(String error) {
     if (!synErrors.contains(error)) {
       synErrors.add(error);
@@ -53,12 +75,9 @@ parser code {:
   }
 :};
 
-//================================================================================================================
-
-//En esta sección, lo que hacemos es un listado de todos los tokens del lexer, dicho lexer, los devuelve como
-//"sym.ALGO", simplemente se hace una declaración de terminal para cada bloque de tokens, por ejemplo el primero,
-// es para palabras reservadas y de control, la segunda es para los tipos de datos, y así hay una para
-// operadores, comparaciones y signos, literales.....
+// ====================== Terminals ====================== //
+// In this section we have a list of all of the tokens from the lexer, which are provided as a sym obj
+// we simply make a declaration of each terminal for token.
 
 terminal PROGRAM, BEGIN, END, VAR, FUNCTION, PROCEDURE, IF, THEN, ELSE, WHILE, DO, FOR, TO, READ, WRITE;
 terminal TINT, TREAL, TSTRING, TCHAR;
@@ -69,25 +88,19 @@ terminal ID, INT_LIT, REAL_LIT, HEX_LIT, STR_LIT, CHAR_LIT, OCT_LIT;
 terminal UMINUS;
 terminal KEYWORD, ERROR;
 
-//================================================================================================================
-
-//Acá se definen los nombres de los simbolos sintacticos, osea, los no terminales, que construirán las producciones
-//enotonces definimos nuestros LHS, osea, los lados izquierdos de las producciones, cup asigna tipos y espacios en las
-//tablas internas, esto evita errores, pues si se usa un no terminal en una producción, pero no fue declarado. cup dará
-//un fallo de generación
+// ==================== Non Terminals ==================== //
+// In a similar fasion as before, here we declare syntax symbols, non terminals, that will build the productions.
+// We define the LHS, the left productions and cup assigns the types and location in the parsing table
 
 non terminal program, main_block, decls_opt, type_spec;
 non terminal funcs_opt, func_list, func, proc, param_secs, param_sec, id_list, block;
 non terminal stmt_list, stmt, expr, bExpr;
 non terminal func_block, proc_block, return_stmt;
-non terminal arg_list_one, args_opt, args_plus, write_args, var_sections, var_sections_tail, decl_items, decl_item, decl_items_tail;
+non terminal args_opt, args_plus, write_args, var_sections, var_sections_tail, decl_items, decl_item, decl_items_tail;
 
-//================================================================================================================
-
-//Es donde se define el orden de mayor prioridad, una forma de decirle a cup como resolver conflictos de expresiones
-//infijas; que operador se aplica primero y como se agrupa cuando hay repetición, osea sin esto, las grámaticas suelen
-//causar conflictos de shift/reduce
-//Se leen de arriba (menor prioridad) hacia abajo (mayor prioridad)
+// ==================== Precedence Table ==================== //
+// Denfies the order of max prior, it tells cup how to resolve conflicts, to know what operator has a higher
+// priority, which to group when there's repetition, it helps avoids ambiguity
 
 precedence left OR;
 precedence left AND;
@@ -97,16 +110,8 @@ precedence left TIMES, DIVIDE, MOD, INTDIV;
 precedence left INC, DEC;
 precedence right UMINUS;
 
-//================================================================================================================
-
-//Estructura general del programa:
-//   PROGRAM Nombre
-//  [Globales]
-//   [Funciones/Procedimientos]
-//  BEGIN ... END
-
-//================================================================================================================
-// Esto le dice a cup que la raíz del lenguaje es el no terminal program
+// ================== Initial non terminal ================== //
+// Tells cup which terminal we are going to use first
 
 start with program;
 

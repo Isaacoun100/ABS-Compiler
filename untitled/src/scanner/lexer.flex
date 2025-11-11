@@ -18,16 +18,43 @@ import java.util.ArrayList;
 
 %{
   public ArrayList<String> lexErrors = new ArrayList<>();
+  // Here we will keep a list of the error that we'll find during the scanning
 
+  /**
+  * This fucntion creates a Symbol and then assign an ID, line and column
+  * @param id
+  * @return The Symbol with the information of said token
+  */
   private Symbol sym(int id) {
       return new Symbol(id, yyline+1, yycolumn+1);
   }
+
+  /**
+  * This fucntion creates a Symbol and then assign an ID, line and column
+  * @param id
+  * @param val
+  * @return The Symbol with the information of said token
+  */
   private Symbol sym(int id, Object val) {
       return new Symbol(id, yyline+1, yycolumn+1, val);
   }
+
+  /**
+  * This fucntion creates a Symbol and then assign an ID, line and column
+  * @param id
+  * @param val
+  * @param line
+  * @param column
+  * @return The Symbol with the information of said token
+  */
   private Symbol symbol(int type, Object val, int line, int column) {
       return new Symbol(type, line, column, val);
   }
+
+  /**
+  * Ads the provided string to the list of errors that we will be displaying at the end of the compiling
+  * @param msg
+  */
   private void addLexError(String msg) {
       lexErrors.add("Línea " + (yyline + 1) + ", Columna " + (yycolumn + 1) + ": " + msg);
   }
@@ -52,111 +79,9 @@ WS         = [ \t\r\n\u00A0\u2007\u202F\uFEFF]+
 INLINECOM  = "{" [^]* "}"
 BLOCKCOM   = "(*" .*? "*)"
 
-// %% // Rules
-
-// "ABSOLUTE"        {return new token("KEYWORD", yytext(), yyline);}
-// "CONST"           {return new token("KEYWORD", yytext(), yyline);}
-// "DOWNTO"          {return new token("KEYWORD", yytext(), yyline);}
-// "FUNCTION"        {return new token("KEYWORD", yytext(), yyline);}
-// "INTERFACE"       {return new token("KEYWORD", yytext(), yyline);}
-// "OBJECT"          {return new token("KEYWORD", yytext(), yyline);}
-// "RECORD"          {return new token("KEYWORD", yytext(), yyline);}
-// "THEN"            {return new token("KEYWORD", yytext(), yyline);}
-// "VAR"             {return new token("KEYWORD", yytext(), yyline);}
-// "AND"             {return new token("KEYWORD", yytext(), yyline);}
-// "CONSTRUCTOR"     {return new token("KEYWORD", yytext(), yyline);}
-// "ELSE"            {return new token("KEYWORD", yytext(), yyline);}
-// "GOTO"            {return new token("KEYWORD", yytext(), yyline);}
-// "INTERRUPT"       {return new token("KEYWORD", yytext(), yyline);}
-// "OF"              {return new token("KEYWORD", yytext(), yyline);}
-// "REPEAT"          {return new token("KEYWORD", yytext(), yyline);}
-// "TO"              {return new token("KEYWORD", yytext(), yyline);}
-// "VIRTUAL"         {return new token("KEYWORD", yytext(), yyline);}
-// "ARRAY"           {return new token("KEYWORD", yytext(), yyline);}
-// "DESTRUCTOR"      {return new token("KEYWORD", yytext(), yyline);}
-// "END"             {return new token("KEYWORD", yytext(), yyline);}
-// "IF"              {return new token("KEYWORD", yytext(), yyline);}
-// "LABEL"           {return new token("KEYWORD", yytext(), yyline);}
-// "OR"              {return new token("KEYWORD", yytext(), yyline);}
-// "SET"             {return new token("KEYWORD", yytext(), yyline);}
-// "TYPE"            {return new token("KEYWORD", yytext(), yyline);}
-// "ASM"             {return new token("KEYWORD", yytext(), yyline);}
-// "EXTERNAL"        {return new token("KEYWORD", yytext(), yyline);}
-// "FILE"            {return new token("KEYWORD", yytext(), yyline);}
-// "IMPLEMENTATION"  {return new token("KEYWORD", yytext(), yyline);}
-// "MOD"             {return new token("KEYWORD", yytext(), yyline);}
-// "PACKED"          {return new token("KEYWORD", yytext(), yyline);}
-// "SHL"             {return new token("KEYWORD", yytext(), yyline);}
-// "UNIT"            {return new token("KEYWORD", yytext(), yyline);}
-// "BEGIN"           {return new token("KEYWORD", yytext(), yyline);}
-// "DIV"             {return new token("KEYWORD", yytext(), yyline);}
-// "FOR"             {return new token("KEYWORD", yytext(), yyline);}
-// "IN"              {return new token("KEYWORD", yytext(), yyline);}
-// "NIL"             {return new token("KEYWORD", yytext(), yyline);}
-// "PRIVATE"         {return new token("KEYWORD", yytext(), yyline);}
-// "WHILE"           {return new token("KEYWORD", yytext(), yyline);}
-// "WITH"            {return new token("KEYWORD", yytext(), yyline);}
-// "SHR"             {return new token("KEYWORD", yytext(), yyline);}
-// "UNTIL"           {return new token("KEYWORD", yytext(), yyline);}
-// "XOR"             {return new token("KEYWORD", yytext(), yyline);}
-// "CASE"            {return new token("KEYWORD", yytext(), yyline);}
-// "DO"              {return new token("KEYWORD", yytext(), yyline);}
-// "FORWARD"         {return new token("KEYWORD", yytext(), yyline);}
-// "INLINE"          {return new token("KEYWORD", yytext(), yyline);}
-// "NOT"             {return new token("KEYWORD", yytext(), yyline);}
-// "PROCEDURE"       {return new token("KEYWORD", yytext(), yyline);}
-// "STRING"          {return new token("KEYWORD", yytext(), yyline);}
-// "INT"             {return new token("KEYWORD", yytext(), yyline);}
-// "CHAR"            {return new token("KEYWORD", yytext(), yyline);}
-// "REAL"            {return new token("KEYWORD", yytext(), yyline);}
-// "READ"            {return new token("KEYWORD", yytext(), yyline);}
-// "WRITE"            {return new token("KEYWORD", yytext(), yyline);}
-// "USES"            {return new token("KEYWORD", yytext(), yyline);}
-
-// \"{TEXT}\"        {return new token("LITERAL", yytext(), yyline);}
-
-// {HEX}             {return new token("NUMBER", yytext(), yyline);}
-
-// {OCT}             { return new token("NUMBER", yytext(), yyline); }
-
-// {NUMBER}          { return new token("NUMBER", yytext(), yyline); }
-
-// \'{CHAR}\'        {return new token("LITERAL", yytext(), yyline);}
-// “{TEXT}”          { return new token("LITERAL", yytext(), yyline); }
-// ‘{CHAR}’          { return new token("LITERAL", yytext(), yyline); }
-
-// "+"               {return new token("OPERATOR", yytext(), yyline);}
-// ">"               {return new token("OPERATOR", yytext(), yyline);}
-// "++"              {return new token("OPERATOR", yytext(), yyline);}
-// ":"               {return new token("OPERATOR", yytext(), yyline);}
-// "-"               {return new token("OPERATOR", yytext(), yyline);}
-// "<="              {return new token("OPERATOR", yytext(), yyline);}
-// "--"              {return new token("OPERATOR", yytext(), yyline);}
-// "."               {return new token("OPERATOR", yytext(), yyline);}
-// "*"               {return new token("OPERATOR", yytext(), yyline);}
-// ">="              {return new token("OPERATOR", yytext(), yyline);}
-// "("               {return new token("OPERATOR", yytext(), yyline);}
-// "^"               {return new token("OPERATOR", yytext(), yyline);}
-// "/"               {return new token("OPERATOR", yytext(), yyline);}
-// "="               {return new token("OPERATOR", yytext(), yyline);}
-// ")"               {return new token("OPERATOR", yytext(), yyline);}
-// "**"              {return new token("OPERATOR", yytext(), yyline);}
-// "<>"              {return new token("OPERATOR", yytext(), yyline);}
-// ","               {return new token("OPERATOR", yytext(), yyline);}
-// "["               {return new token("OPERATOR", yytext(), yyline);}
-// "<"               {return new token("OPERATOR", yytext(), yyline);}
-// ";"               {return new token("OPERATOR", yytext(), yyline);}
-// "]"               {return new token("OPERATOR", yytext(), yyline);}
-
-// {ID}              {return new token("IDENTIFIER", yytext(), yyline);}
-// "{" [^}]* "}"     { /* Inline comment */ }
-// "(*" .*? "*)"     { /* Multiblock comment */ }
-// [ \t\r\n]+      { /* Ignore */ }
-// .                 { return new token("ERROR", yytext(), yyline); }
-
 %% // Rules
 
-/* ===== Palabras reservadas necesarias para la gramática ===== */
+// ===== Reserved words for the grammar ===== //
 "PROGRAM"       { return sym(sym.PROGRAM); }
 "BEGIN"         { return sym(sym.BEGIN); }
 "END"           { return sym(sym.END); }
@@ -173,7 +98,7 @@ BLOCKCOM   = "(*" .*? "*)"
 "READ"          { return sym(sym.READ); }
 "WRITE"         { return sym(sym.WRITE); }
 
-/* Tipos */
+// =============== Data Types =============== //
 "INT"           { return sym(sym.TINT); }
 "REAL"          { return sym(sym.TREAL); }
 "STRING"        { return sym(sym.TSTRING); }
@@ -189,7 +114,6 @@ BLOCKCOM   = "(*" .*? "*)"
 "/"             { return sym(sym.DIVIDE); }
 "MOD"           { return sym(sym.MOD); }
 "DIV"           { return sym(sym.INTDIV); }
-
 "="             { return sym(sym.EQ); }
 ">="            { return sym(sym.GE); }
 ">"             { return sym(sym.GT); }
@@ -211,32 +135,32 @@ BLOCKCOM   = "(*" .*? "*)"
 "."             { return sym(sym.DOT); }
 "^"             { return sym(sym.CARET); }
 
-/* Literales */
-{HEX}                 { return sym(sym.HEX_LIT, yytext()); }
-{OCT}                 { return sym(sym.INT_LIT, yytext()); }  // o un OCT_LIT si lo usas
-{NUMBER}              {
-  if (yytext().indexOf('.') >= 0 || yytext().indexOf('e')>=0 || yytext().indexOf('E')>=0)
-    return sym(sym.REAL_LIT, yytext());
-  else return sym(sym.INT_LIT, yytext());
-}
+// =============== Literals ================= //
+
+// Numbers
+{HEX}           { return sym(sym.HEX_LIT, yytext()); }
+{OCT}           { return sym(sym.INT_LIT, yytext()); }
+{NUMBER}        {
+          String t = yytext();
+          if (t.indexOf('.') >= 0 || t.indexOf('e')>=0 || t.indexOf('E')>=0)
+              return sym(sym.REAL_LIT, t);
+          else
+              return sym(sym.INT_LIT, t);
+      }
+
+// Text
 \"{TEXT}\"            { return sym(sym.STR_LIT, yytext()); }
-\'{CHAR}\'           { return sym(sym.CHAR_LIT, yytext()); }
-/* comillas “ ” y ‘ ’ si las vas a permitir explícitamente:
-“{TEXT}”              { return sym(sym.STR_LIT, yytext()); }
-‘{CHAR}’             { return sym(sym.CHAR_LIT, yytext()); }
-*/
+\'{CHAR}\'            { return sym(sym.CHAR_LIT, yytext()); }
 
-
-/* Identificadores */
+// =============== Identifiers ============== //
 {ID}                  { return sym(sym.ID, yytext()); }
 
-/* Comentarios y espacios */
+// =============== Comments ================= //
 {INLINECOM}           { /* ignore */ }
 {BLOCKCOM}            { /* ignore */ }
-\uFEFF               { /* ignore BOM */ }
 {WS}                  { /* ignore */ }
 
-/* Cualquier otro char = error léxico */
+// ============== Error Token =============== //
 .                     {
           addLexError("Carácter no reconocido: '" + yytext() + "'");
           return sym(sym.ERROR, yytext());
