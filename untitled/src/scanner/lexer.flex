@@ -17,7 +17,6 @@ import java.util.ArrayList;
 %type java_cup.runtime.Symbol
 
 %{
-  // ← AGREGAR ESTA LÍNEA:
   public ArrayList<String> lexErrors = new ArrayList<>();
 
   private Symbol sym(int id) {
@@ -25,6 +24,9 @@ import java.util.ArrayList;
   }
   private Symbol sym(int id, Object val) {
       return new Symbol(id, yyline+1, yycolumn+1, val);
+  }
+  private Symbol symbol(int type, Object val, int line, int column) {
+      return new Symbol(type, line, column, val);
   }
   private void addLexError(String msg) {
       lexErrors.add("Línea " + (yyline + 1) + ", Columna " + (yycolumn + 1) + ": " + msg);
@@ -236,6 +238,6 @@ BLOCKCOM   = "(*" .*? "*)"
 
 /* Cualquier otro char = error léxico */
 .                     {
-    addLexError("Carácter no reconocido: '" + yytext() + "'");
-    return sym(sym.error, yytext());
+          addLexError("Carácter no reconocido: '" + yytext() + "'");
+          return sym(sym.ERROR, yytext());
 }
