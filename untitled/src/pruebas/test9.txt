@@ -1,7 +1,7 @@
 PROGRAM P
 FUNCTION Suma(a, b: INT): INT;
+VAR t: INT; u: REAL;
 BEGIN
-  VAR t: INT; u: REAL;
   t := a + b;
   Suma := t;
 END

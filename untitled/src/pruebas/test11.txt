@@ -1,7 +1,7 @@
 PROGRAM P
 FUNCTION F(x: INT; y: REAL): INT;
+VAR t: INT;
 BEGIN
-  VAR t: INT;
   t := x;
   F := t;
 END
