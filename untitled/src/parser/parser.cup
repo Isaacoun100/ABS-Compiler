@@ -5,7 +5,7 @@ package parser;
 
 import java.util.*;
 import java_cup.runtime.*;
-
+import codigo.CodeGenerator;
 /* Aqui hacemos override a los errores que por defecto muestra cup para así
  * poder distinguir entre los tipos de errores, lo cual hace más fácil reconocer
  * los errores y seguimos la indicación sobre los errores
@@ -73,6 +73,12 @@ parser code {:
       synErrors.add(error);
     }
   }
+
+  // Para ir acumulando los IDs de una declaración (a, b, c: INT;)
+  public java.util.List<String> tmpIdList = new java.util.ArrayList<>();
+
+  // Para guardar el tipo actual (INT, REAL, STRING, CHAR)
+  public String tmpType = null;
 :};
 
 // ====================== Terminals ====================== //
@@ -193,15 +199,52 @@ decl_items_tail ::=
 
 decl_item ::=
     id_list COLON type_spec SEMI
+    {:
+        //Generamos el codigo para la declaracion de variables
+        for (String nombre : parser.tmpIdList) {
+            CodeGenerator.getInstance().declararGlobal(nombre, parser.tmpType);
+        }
+        // Limpiamos la "pila"
+        parser.tmpIdList.clear();
+        parser.tmpType = null;
+    :}
   | id_list COLON type_spec error:e
       {: parser.addError("Línea " + eleft + ": Falta punto y coma"); :}
   | id_list error:e type_spec SEMI
       {: parser.addError("Línea " + eleft + ": Error en declaración de variable"); :}
   ;
 
-id_list ::= id_list COMMA ID | ID ;
+id_list ::= id_list COMMA ID:id
+      {:
+      // Añadimos otro identificador a la lista actual
+        parser.tmpIdList.add(id.toString());
+      :}
+| ID:id  // ID: id guardar el valor del id para poder usarlo
+      {:
+          // Empezamos una nueva lista de IDs para esta declaración
+          parser.tmpIdList.clear();
+          parser.tmpIdList.add(id.toString());
+      :} ;
 
-type_spec ::= TINT | TREAL | TSTRING | TCHAR ;
+// type_spec ::= TINT | TREAL | TSTRING | TCHAR ;
+type_spec ::=
+    TINT
+      {:
+          parser.tmpType = "INT";
+      :}
+  | TREAL
+      {:
+          parser.tmpType = "REAL";
+      :}
+  | TSTRING
+      {:
+          parser.tmpType = "STRING";
+      :}
+  | TCHAR
+      {:
+          parser.tmpType = "CHAR";
+      :}
+  ;
 
 //================================================================================================================
 
