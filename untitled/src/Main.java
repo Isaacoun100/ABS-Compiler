@@ -5,6 +5,7 @@ import scanner.absScanner;
 import parser.Parser;
 import codigo.CodeGenerator;
 
+
 public class Main {
 
     public static void main(String[] args) {
@@ -30,7 +31,7 @@ public class Main {
                 ArrayList<String> synErrors = parser.synErrors;
 
                 if (lexErrors.isEmpty() && synErrors.isEmpty()) {
-                    printSuccess(result);
+                    generateCode(result);
                 } else {
                     printErrors(lexErrors, synErrors);
                 }
@@ -48,12 +49,30 @@ public class Main {
         }
     }
 
+    private static void generateCode(Object result) {
+        printSuccess(result);
+
+        try {
+            // Pedirle al CodeGenerator el código NASM
+            String asm = CodeGenerator.getInstance().buildProgram();
+
+            // Guardarlo en programa.asm en la carpeta del proyecto
+            Path outPath = Paths.get("programa.asm").toAbsolutePath().normalize();
+            Files.writeString(outPath, asm);
+
+            System.out.println("✓ Código NASM generado en: " + outPath);
+        } catch (IOException e) {
+            System.err.println("✗ Error escribiendo programa.asm: " + e.getMessage());
+        }
+    }
+
     private static void printSuccess(Object result) {
         System.out.println("✓ Análisis completado sin errores");
         System.out.println("✓ AST/resultado: " + result);
     }
 
     private static void printErrors(ArrayList<String> lexErrors, ArrayList<String> synErrors) {
+        
         if (!lexErrors.isEmpty()) {
             System.out.println("\n========== ERRORES LÉXICOS (" + lexErrors.size() + ") ==========");
             lexErrors.forEach(error -> System.out.println("  ✗ " + error));
