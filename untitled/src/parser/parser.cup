@@ -11,6 +11,132 @@ import codigo.CodeGenerator;
  * los errores y seguimos la indicación sobre los errores
  */
 parser code {:
+    // -------------- ESTRUCTURA PARA PARAMETROS----------
+    public static class Parametro {
+        public final String nombre;
+        public final String tipo;      // "INT", "REAL", "STRING", "CHAR"
+        public final int posicion;     // 0, 1, 2, ...
+
+        public Parametro(String nombre, String tipo, int posicion) {
+            this.nombre = nombre;
+            this.tipo = tipo;
+            this.posicion = posicion;
+        }
+    }
+
+    //  ESTRUCTURA PARA LOS ITEMS DE LA TABLA DE SIMBOLOS----------
+    public static class EntradaTS {
+
+      public enum Clase {
+          VARIABLE,
+          FUNCION,
+          PROCEDIMIENTO
+      }
+
+      public final String nombre;
+      public final Clase clase;
+
+      /**
+       * VARIABLE: tipo de la variable
+       * FUNCION : tipo de retorno
+       * PROC    : normalmente "VOID" o null
+       */
+      public final String tipo;
+
+      /** Solo tiene sentido si clase == VARIABLE. */
+      public final boolean esLocal;
+
+      /** Solo se usa si clase == FUNCION o PROCEDIMIENTO. */
+      public final java.util.List<Parametro> parametros;
+
+      public EntradaTS(String nombre,
+                        Clase clase,
+                        String tipo,
+                        boolean esLocal,
+                        java.util.List<Parametro> parametros) {
+            this.nombre = nombre;
+            this.clase = clase;
+            this.tipo  = tipo;
+            this.esLocal = esLocal;
+
+            if (parametros == null) {
+                this.parametros = java.util.Collections.emptyList();
+            } else {
+                this.parametros = new java.util.ArrayList<>(parametros);
+            }
+        }
+
+        public int cantidadParametros() {
+            return parametros.size();
+        }
+    }
+
+    // TABLA DE SIMBOLOS 
+    public java.util.List<EntradaTS> tablaSimbolos = new java.util.ArrayList<>();
+    
+    // Lista temporal para ir revisando los parametros
+    public java.util.List<Parametro> tmpParams = new java.util.ArrayList<>();
+
+    // METODOS PARA TABLA DE SIMBOLOS 
+
+    //Verificar si un nombre ya existe (variable, proc, func)
+    public EntradaTS buscarTS(String nombre) {
+        for (EntradaTS e : tablaSimbolos) {
+            if (e.nombre.equals(nombre)) {
+                return e;
+            }
+        }
+        return null;
+    }
+
+    //Agregar una variable (global o local)
+    public void agregarVariableTS(String nombre,
+                                String tipo,
+                                boolean esLocal) {
+
+      if (buscarTS(nombre) != null) {
+        //   addError("Identificador ya declarado: " + nombre); ANALISIS SEMANTICO
+          return;
+      }
+
+      tablaSimbolos.add(
+          new EntradaTS(
+              nombre,
+              EntradaTS.Clase.VARIABLE,
+              tipo,
+              esLocal,
+              null    // sin parámetros
+          )
+      );
+    }
+
+    //Agregar una funcion o procedimiento
+    public void agregarFuncionTS(String nombre,
+                                String tipoRetorno,
+                                boolean esProcedimiento) {
+
+        if (buscarTS(nombre) != null) {
+            addError("Identificador ya declarado: " + nombre);
+            return;
+        }
+
+        EntradaTS.Clase clase = esProcedimiento
+            ? EntradaTS.Clase.PROCEDIMIENTO
+            : EntradaTS.Clase.FUNCION;
+
+        tablaSimbolos.add(
+            new EntradaTS(
+                nombre,
+                clase,
+                tipoRetorno,
+                false,      // esLocal solo aplica a variables
+                tmpParams   // copia interna en el constructor
+            )
+        );
+
+        // lista de parámetros lista para la siguiente función/proc
+        tmpParams.clear();
+    }
 
     // DATA OBJECT
     //Lo agregue para ordenar y facilitar varias cosas de analisis semantico y generacion de codigo
