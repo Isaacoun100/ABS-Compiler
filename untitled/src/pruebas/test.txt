@@ -1,8 +1,10 @@
 PROGRAM Prueba
 VAR
   a, b: INT;
+  c: STRING;
+  x: CHAR;
+  y: REAL;
 
 BEGIN
-
-    a := 4;
+    a := 4 + 5;
 END

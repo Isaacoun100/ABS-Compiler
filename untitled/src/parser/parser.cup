@@ -323,7 +323,31 @@ block ::=
 
 stmt ::=
     // Asignaciones
-    ID ASSIGN expr SEMI
+    // ID ASSIGN expr SEMI
+    ID:id ASSIGN expr:e SEMI // devolver el resultado de la exprecion e 
+      {:
+          // // expr genero un "push <valor>"
+          // String name = id.toString();
+
+          // CodeGenerator.getInstance().emit(
+          //     "    pop eax\n" +
+          //     "    mov [" + name + "], eax\n"
+          // );
+
+          String name = id.toString();
+          String tipo = codigo.CodeGenerator.getInstance().getGlobalType(name);
+          CodeGenerator cg = CodeGenerator.getInstance();
+
+          cg.emit("    pop eax\n");
+
+          if ("CHAR".equals(tipo)) {
+              // variable de 1 byte: guardamos solo AL
+              cg.emit("    mov [" + name + "], al\n");
+          } else {
+              // INT / REAL / STRING (por ahora todos en 4 bytes)
+              cg.emit("    mov [" + name + "], eax\n");
+          }
+      :}
   | ID ASSIGN bExpr SEMI
   | ID ASSIGN expr error:e
       {: parser.addError("Línea " + eleft + ": Falta ';' al final de la asignación"); :}
@@ -468,18 +492,37 @@ bExpr ::=
 
 
 expr ::=
+    // expr PLUS expr
     expr PLUS expr
+      {:
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          cg.emit("    pop ebx\n"); // Segundo parametro
+          cg.emit("    pop eax\n"); // Primer parametro
+          cg.emit("    add eax, ebx\n"); //Hacer la suma
+          cg.emit("    push eax\n"); //Guardar el resultado en la pila
+      :}
   | expr MINUS expr
   | expr TIMES expr
   | expr DIVIDE expr
   | expr MOD expr
   | expr INTDIV expr
   | MINUS expr %prec UMINUS
-  | INT_LIT
+
+  | INT_LIT:n
+      {:
+          // n es el valor (String) del literal, no un Symbol
+          String value = n.toString();
+          CodeGenerator.getInstance().emit("    push " + value + "\n");
+      :}
   | REAL_LIT
   | HEX_LIT
   | STR_LIT
-  | CHAR_LIT
+  
+  | CHAR_LIT:n
+      {:
+          String value = n.toString();
+          CodeGenerator.getInstance().emit("    push " + value + "\n");
+      :}
   | ID
   | LPAREN expr RPAREN
   | ID LPAREN args_opt RPAREN

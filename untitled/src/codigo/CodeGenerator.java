@@ -27,6 +27,11 @@ public class CodeGenerator {
 
     //Instrucciones del main
      private final List<String> mainCode = new ArrayList<>();
+
+    //OBTENER EL TIPO DE UNA VARIABLE
+     public String getGlobalType(String nombre) {
+        return globalVars.get(nombre);
+    }
     
     //----------GUARDAR VARIABLES GLOBALES--------------------
     // guardamos las variables globales en la lista cuando las encontremos en el VAR
@@ -38,6 +43,9 @@ public class CodeGenerator {
         }
         globalVars.put(nombre, tipo);
     }
+
+
+
 
     //----------METODO PARA AÑADIR UNA INSTRUCCION AL MAIN-------
     // La lista de instrucciones del main
@@ -102,6 +110,12 @@ public class CodeGenerator {
         sb.append("main:\n");
 
         //Instrucciones del main
+        for (String instr : mainCode) {
+            sb.append(instr);
+            if (!instr.endsWith("\n")) {
+                sb.append("\n");
+            }
+        }
         
         sb.append("    ret\n");
         return sb.toString();
