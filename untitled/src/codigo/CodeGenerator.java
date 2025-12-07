@@ -57,7 +57,8 @@ public class CodeGenerator {
     // Genera labels unicos con un numero que se va incrementando
     // TODO: podriamos hacerlo mas bonito
     public String newLabel(String prefix) {
-        return prefix + (labelCounter++);
+        labelCounter++;
+        return prefix + "_" + labelCounter;
     }
 
     //-----------GENERAR VARIABLES TEMPORALES---------

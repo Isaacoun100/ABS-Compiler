@@ -9,17 +9,24 @@ section .bss
     a resd 1
     b resd 1
     c resd 1
-    x resb 1
-    y resd 1
 
 section .text
 main:
-    push 4
-    push 5
-    pop ebx
-    pop eax
-    add eax, ebx
-    push eax
+    push 2
     pop eax
     mov [a], eax
+    push 5
+    pop eax
+    mov [b], eax
+    push dword [a]
+    push dword [b]
+    pop ebx
+    pop eax
+    cmp eax, ebx
+    sete al
+    movzx eax, al
+    push eax
+    push 100
+    pop eax
+    mov [c], eax
     ret

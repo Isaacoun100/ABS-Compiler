@@ -569,6 +569,12 @@ public class Parser extends java_cup.runtime.lr_parser {
   public ArrayList<String> synErrors = new ArrayList<>();
   private boolean errorRecovering = false;
 
+  public java.util.Stack<String> labelStack = new java.util.Stack<>();
+
+    public String newLabel(String base) {
+        return base + "_" + (labelCounter++);
+    }
+
   /**
   * Override for the report_error function to provide a better error message
   * @param msg
@@ -1179,19 +1185,26 @@ class CUP$Parser$actions {
           //     "    mov [" + name + "], eax\n"
           // );
 
-          String name = id.toString();
-          String tipo = codigo.CodeGenerator.getInstance().getGlobalType(name);
-          CodeGenerator cg = CodeGenerator.getInstance();
+        //   String name = id.toString();
+        //   String tipo = codigo.CodeGenerator.getInstance().getGlobalType(name);
+        //   CodeGenerator cg = CodeGenerator.getInstance();
 
-          cg.emit("    pop eax\n");
+        //   cg.emit("    pop eax\n");
 
-          if ("CHAR".equals(tipo)) {
-              // variable de 1 byte: guardamos solo AL
-              cg.emit("    mov [" + name + "], al\n");
-          } else {
-              // INT / REAL / STRING (por ahora todos en 4 bytes)
-              cg.emit("    mov [" + name + "], eax\n");
-          }
+        //   if ("CHAR".equals(tipo)) {
+        //       // variable de 1 byte: guardamos solo AL
+        //       cg.emit("    mov [" + name + "], al\n");
+        //   } else {
+        //       // INT / REAL / STRING (por ahora todos en 4 bytes)
+        //       cg.emit("    mov [" + name + "], eax\n");
+        //   }
+            String name = id.toString();
+            CodeGenerator cg = CodeGenerator.getInstance();
+
+            cg.emit("    pop eax\n");
+            cg.emit("    mov [" + name + "], eax\n");
+
+
       
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("stmt",13, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-3)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
@@ -1558,7 +1571,16 @@ class CUP$Parser$actions {
           case 83: // bExpr ::= expr EQ expr 
             {
               Object RESULT =null;
-
+		
+          CodeGenerator.getInstance().emit(
+              "    pop ebx\n" +
+              "    pop eax\n" +
+              "    cmp eax, ebx\n" +
+              "    sete al\n" +
+              "    movzx eax, al\n" +
+              "    push eax\n"
+          );
+      
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("bExpr",15, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;
@@ -1663,7 +1685,13 @@ class CUP$Parser$actions {
           case 94: // expr ::= expr MINUS expr 
             {
               Object RESULT =null;
-
+		
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          cg.emit("    pop ebx\n"); // Segundo parametro
+          cg.emit("    pop eax\n"); // Primer parametro
+          cg.emit("    sub eax, ebx\n"); //Hacer la suma
+          cg.emit("    push eax\n"); //Guardar el resultado en la pila
+      
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;
@@ -1775,7 +1803,16 @@ class CUP$Parser$actions {
           case 105: // expr ::= ID 
             {
               Object RESULT =null;
-
+		int idleft = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).left;
+		int idright = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
+		Object id = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
+		
+          // Cargar el valor de la variable en la pila
+          String name = id.toString(); 
+          CodeGenerator.getInstance().emit(
+              "    push dword [" + name + "]\n"
+          );
+      
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;
@@ -1802,7 +1839,13 @@ class CUP$Parser$actions {
           case 108: // expr ::= expr INC 
             {
               Object RESULT =null;
-
+		
+      CodeGenerator.getInstance().emit(
+          "    pop eax\n" +
+          "    inc eax\n" +
+          "    push eax\n"
+      );
+    
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-1)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;
@@ -1811,7 +1854,13 @@ class CUP$Parser$actions {
           case 109: // expr ::= expr DEC 
             {
               Object RESULT =null;
-
+		
+        CodeGenerator.getInstance().emit(
+            "    pop eax\n" +
+            "    dec eax\n" +
+            "    push eax\n"
+        );
+    
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-1)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;

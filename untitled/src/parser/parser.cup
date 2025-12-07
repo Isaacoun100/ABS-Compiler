@@ -16,6 +16,12 @@ parser code {:
   public ArrayList<String> synErrors = new ArrayList<>();
   private boolean errorRecovering = false;
 
+  public java.util.Stack<String> labelStack = new java.util.Stack<>();
+
+    public String newLabel(String base) {
+        return base + "_" + (labelCounter++);
+    }
+
   /**
   * Override for the report_error function to provide a better error message
   * @param msg
@@ -322,6 +328,7 @@ block ::=
 //   - Vacía:            ;   (no-op; útil para tolerancia)
 
 stmt ::=
+    
     // Asignaciones
     // ID ASSIGN expr SEMI
     ID:id ASSIGN expr:e SEMI // devolver el resultado de la exprecion e 
@@ -334,19 +341,26 @@ stmt ::=
           //     "    mov [" + name + "], eax\n"
           // );
 
-          String name = id.toString();
-          String tipo = codigo.CodeGenerator.getInstance().getGlobalType(name);
-          CodeGenerator cg = CodeGenerator.getInstance();
+        //   String name = id.toString();
+        //   String tipo = codigo.CodeGenerator.getInstance().getGlobalType(name);
+        //   CodeGenerator cg = CodeGenerator.getInstance();
 
-          cg.emit("    pop eax\n");
+        //   cg.emit("    pop eax\n");
 
-          if ("CHAR".equals(tipo)) {
-              // variable de 1 byte: guardamos solo AL
-              cg.emit("    mov [" + name + "], al\n");
-          } else {
-              // INT / REAL / STRING (por ahora todos en 4 bytes)
-              cg.emit("    mov [" + name + "], eax\n");
-          }
+        //   if ("CHAR".equals(tipo)) {
+        //       // variable de 1 byte: guardamos solo AL
+        //       cg.emit("    mov [" + name + "], al\n");
+        //   } else {
+        //       // INT / REAL / STRING (por ahora todos en 4 bytes)
+        //       cg.emit("    mov [" + name + "], eax\n");
+        //   }
+            String name = id.toString();
+            CodeGenerator cg = CodeGenerator.getInstance();
+
+            cg.emit("    pop eax\n");
+            cg.emit("    mov [" + name + "], eax\n");
+
+
       :}
   | ID ASSIGN bExpr SEMI
   | ID ASSIGN expr error:e
@@ -373,8 +387,10 @@ stmt ::=
       {: parser.addError("Línea " + eleft + ": Falta ';' después de la llamada"); :}
 
   // IF statements
-  | IF bExpr THEN block
+   | IF bExpr THEN block
+ 
   | IF bExpr THEN block ELSE block
+
   | IF bExpr error:e block
       {: parser.addError("Línea " + eleft + ": Falta THEN en estructura IF"); :}
   | IF error:e THEN block
@@ -453,6 +469,16 @@ write_args ::=
 
 bExpr ::=
     expr EQ expr
+      {:
+          CodeGenerator.getInstance().emit(
+              "    pop ebx\n" +
+              "    pop eax\n" +
+              "    cmp eax, ebx\n" +
+              "    sete al\n" +
+              "    movzx eax, al\n" +
+              "    push eax\n"
+          );
+      :}
   | expr NE expr
   | expr LT expr
   | expr LE expr
@@ -502,6 +528,13 @@ expr ::=
           cg.emit("    push eax\n"); //Guardar el resultado en la pila
       :}
   | expr MINUS expr
+      {:
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          cg.emit("    pop ebx\n"); // Segundo parametro
+          cg.emit("    pop eax\n"); // Primer parametro
+          cg.emit("    sub eax, ebx\n"); //Hacer la suma
+          cg.emit("    push eax\n"); //Guardar el resultado en la pila
+      :}
   | expr TIMES expr
   | expr DIVIDE expr
   | expr MOD expr
@@ -523,11 +556,33 @@ expr ::=
           String value = n.toString();
           CodeGenerator.getInstance().emit("    push " + value + "\n");
       :}
-  | ID
+  // | ID
+  | ID:id
+      {:
+          // Cargar el valor de la variable en la pila
+          String name = id.toString(); 
+          CodeGenerator.getInstance().emit(
+              "    push dword [" + name + "]\n"
+          );
+      :}
   | LPAREN expr RPAREN
   | ID LPAREN args_opt RPAREN
   | expr INC
+    {:
+      CodeGenerator.getInstance().emit(
+          "    pop eax\n" +
+          "    inc eax\n" +
+          "    push eax\n"
+      );
+    :}
   | expr DEC
+    {:
+        CodeGenerator.getInstance().emit(
+            "    pop eax\n" +
+            "    dec eax\n" +
+            "    push eax\n"
+        );
+    :}
 
   // Recuperación específica para token ERROR (devuelto por el scanner)
   | ERROR:lex
