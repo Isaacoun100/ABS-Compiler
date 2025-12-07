@@ -1,0 +1,36 @@
+//Esta es una prueba para las declaraciones de variables globales y locales y constantes
+
+
+PROGRAM Prueba
+
+VAR
+
+ numero,limite,contador: REAL;  // todo esta bien
+
+ :INT; //hizo falta el identificador
+
+ respuesta : STRING ; 
+
+ varsintipo ; //error porque no se le declara el tipo
+
+PROCEDURE funcion1() //esta esta bien
+VAR
+   variable: INT;
+BEGIN
+   funcion1:= 0;
+END
+
+FUNCTION funcion1():INT //tiene errores
+VAR
+   variable; // no le define tipo
+   i: INT;
+BEGIN
+   funcion1:= 0;
+END
+
+BEGIN
+ WRITE("Fin");
+END
+
+
+
