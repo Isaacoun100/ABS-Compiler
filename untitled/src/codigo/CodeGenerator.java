@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import parser.Parser;
+import static parser.Parser.DO.Clase.*;
 
 public class CodeGenerator {
 
@@ -37,15 +39,12 @@ public class CodeGenerator {
     // guardamos las variables globales en la lista cuando las encontremos en el VAR
     public void declararGlobal(String nombre, String tipo) {
         if (globalVars.containsKey(nombre)) {
-            // TODO: esto debería ir a la lista de errores semánticos,
+            // ANALISIS SEMANTICO
             System.err.println("Advertencia: variable global repetida: " + nombre);
             return;
         }
         globalVars.put(nombre, tipo);
     }
-
-
-
 
     //----------METODO PARA AÑADIR UNA INSTRUCCION AL MAIN-------
     // La lista de instrucciones del main
@@ -66,7 +65,6 @@ public class CodeGenerator {
     }
     //--------------GENERAR LABELS------------//
     // Genera labels unicos con un numero que se va incrementando
-    // TODO: podriamos hacerlo mas bonito
     public String newLabel(String prefix) {
         labelCounter++;
         return prefix + "_" + labelCounter;
@@ -75,6 +73,35 @@ public class CodeGenerator {
     //-----------GENERAR VARIABLES TEMPORALES---------
     public String newTemp() {
         return "t" + (tempCounter++);
+    }
+
+    public void declararTemporal(String nombre, String tipo) {
+        if (globalVars.containsKey(nombre)) return;
+        globalVars.put(nombre, tipo);
+    }
+
+    public void emitLoad(Parser.DO d) {
+        switch (d.clase) {
+            case CONST:
+                // constante inmediata
+                if ("STRING".equals(d.tipo)) {
+                    // para strings normalmente NO nos conviene push inmediato;
+                    // aquí puedes decidir: error, o alguna convención.
+                    System.err.println("emitLoad STRING CONST: manejar aparte");
+                } else {
+                    emit("    push " + d.valorConst + "\n");
+                }
+                break;
+
+            case ADDR:
+                // cargar desde memoria (var o temp)
+                if ("STRING".equals(d.tipo)) {
+                    System.err.println("emitLoad STRING ADDR: probablemente no quieres usar la pila");
+                } else {
+                    emit("    push dword [" + d.nombre + "]\n");
+                }
+                break;
+        }
     }
 
     public void emitCopyStringLiteral(String varName, String literal) {
@@ -95,6 +122,25 @@ public class CodeGenerator {
 
         // Terminador nulo
         mainCode.add("    mov byte [" + varName + " + " + value.length() + "], 0");
+    }
+
+    public void emitCopyStringVar(String dest, String src) {
+        String lblLoop = newLabel("copyStr_loop");
+        String lblEnd  = newLabel("copyStr_end");
+
+        mainCode.add("    mov esi, " + src);   // origen
+        mainCode.add("    mov edi, " + dest);  // destino
+
+        mainCode.add(lblLoop + ":");
+        mainCode.add("    mov al, [esi]");     // cargar byte
+        mainCode.add("    mov [edi], al");     // guardarlo
+        mainCode.add("    cmp al, 0");         // fin de string?
+        mainCode.add("    je " + lblEnd);
+        mainCode.add("    inc esi");
+        mainCode.add("    inc edi");
+        mainCode.add("    jmp " + lblLoop);
+
+        mainCode.add(lblEnd + ":");
     }
     // ---------------------------GENERAR CODIGO NASM-------------------------//
 

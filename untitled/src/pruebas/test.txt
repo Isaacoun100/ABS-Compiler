@@ -1,13 +1,26 @@
-PROGRAM Prueba
+PROGRAM PruebaTodo
 VAR
-  x, y: INT;
-  r: REAL;
-  nombre: STRING;
-  letra: CHAR;
-
+  s1, s2: STRING;
+  x, y, z: INT;
 BEGIN
-  a := 2;
-  b := 5;
-  c := 0;
+  s1 := "hola";
+  s2 := s1;
 
+  x := 5;
+  y := 3;
+
+  z := x + y;      
+  z := z - 2;      
+
+  x := x++;     
+  y := y--;      
+
+  IF z = x THEN
+    BEGIN
+      s1 := "iguales";
+    END
+  ELSE
+    BEGIN
+      s1 := "distintos";
+    END
 END

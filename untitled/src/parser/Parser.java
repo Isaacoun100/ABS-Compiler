@@ -567,17 +567,64 @@ public class Parser extends java_cup.runtime.lr_parser {
 
 
 
-  // Listado de errores del parser
-  public ArrayList<String> synErrors = new ArrayList<>();
-  private boolean errorRecovering = false;
+    // DATA OBJECT
+    //Lo agregue para ordenar y facilitar varias cosas de analisis semantico y generacion de codigo
+    public static class DO {
 
-  public java.util.Stack<String> labelStack = new java.util.Stack<>();
+        public enum Clase {
+            CONST,   // constante
+            ADDR     //direccion
+        }
+
+        public enum OrigenAddr {
+            VAR,     // variable
+            TEMP     // var temporal
+        }
+
+        public String tipo;        
+        public Clase clase;
+
+        // Si es constante
+        public String valorConst; 
+        // Si es una direccion
+        public OrigenAddr origen;
+        public String nombre;      // nombre de la variable o del temporal
+
+        // constructor para constantes
+        public DO(String tipo, String valorConst) {
+            this.tipo = tipo;
+            this.clase = Clase.CONST;
+            this.valorConst = valorConst;
+        }
+        // constructor para direcciones
+        public DO(String tipo, OrigenAddr origen, String nombre) {
+            this.tipo = tipo;
+            this.clase = Clase.ADDR;
+            this.origen = origen;
+            this.nombre = nombre;
+        }
+    }
+
+    // pila de labels
+    public java.util.Stack<String> labelStack = new java.util.Stack<>();
+
     private int labelCounter = 0;
     public String newLabel(String base) {
         return base + "_" + (labelCounter++);
     }
+
+    // pila de indices solo importa para el reajuste en el if_else
     public java.util.Stack<Integer> indices = new java.util.Stack<>();
 
+    // Para ir acumulando los IDs de una declaración (a, b, c: INT;)
+    public java.util.List<String> tmpIdList = new java.util.ArrayList<>();
+
+    // Para guardar el tipo actual (INT, REAL, STRING, CHAR)
+    public String tmpType = null;
+
+    // Listado de errores del parser
+    public ArrayList<String> synErrors = new ArrayList<>();
+    private boolean errorRecovering = false;
   /**
   * Override for the report_error function to provide a better error message
   * @param msg
@@ -636,11 +683,8 @@ public class Parser extends java_cup.runtime.lr_parser {
     }
   }
 
-  // Para ir acumulando los IDs de una declaración (a, b, c: INT;)
-  public java.util.List<String> tmpIdList = new java.util.ArrayList<>();
+  
 
-  // Para guardar el tipo actual (INT, REAL, STRING, CHAR)
-  public String tmpType = null;
 
 
 /** Cup generated class to encapsulate user supplied action code.*/
@@ -922,7 +966,6 @@ class CUP$Parser$actions {
 		int idright = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
 		Object id = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
 		
-      // Añadimos otro identificador a la lista actual
         parser.tmpIdList.add(id.toString());
       
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("id_list",10, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
@@ -1180,33 +1223,47 @@ class CUP$Parser$actions {
 		int eright = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-1)).right;
 		Object e = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.elementAt(CUP$Parser$top-1)).value;
 		
-          // // expr genero un "push <valor>"
-          // String name = id.toString();
+      
+      String dest = id.toString();
+      codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+      String tipoDest = cg.getGlobalType(dest);
 
-          // CodeGenerator.getInstance().emit(
-          //     "    pop eax\n" +
-          //     "    mov [" + name + "], eax\n"
-          // );
+      DO valor = (DO) e;           
+      String tipoExpr = valor.tipo;
 
-        //   String name = id.toString();
-        //   String tipo = codigo.CodeGenerator.getInstance().getGlobalType(name);
-        //   CodeGenerator cg = CodeGenerator.getInstance();
+      if (tipoDest == null) {
+          parser.addError("Variable no declarada: " + dest); //ANALISIS SEMANTICO
+      } else if ("STRING".equals(tipoDest)) {
+          // ANALISIS SEMANTICO
+          if (!"STRING".equals(tipoExpr)) {
+              parser.addError("No se puede asignar " + tipoExpr
+                              + " a variable STRING " + dest);
+          } else {
+              if (valor.clase == DO.Clase.CONST) { // si se sta asignando un string directo a la variable
+                  cg.emitCopyStringLiteral(dest, valor.valorConst);
+              } else { // Si se estan asignando a una variable tipo string el contenido de otra tipo string
+                  cg.emitCopyStringVar(dest, valor.nombre);
+              }
+          }
 
-        //   cg.emit("    pop eax\n");
-
-        //   if ("CHAR".equals(tipo)) {
-        //       // variable de 1 byte: guardamos solo AL
-        //       cg.emit("    mov [" + name + "], al\n");
-        //   } else {
-        //       // INT / REAL / STRING (por ahora todos en 4 bytes)
-        //       cg.emit("    mov [" + name + "], eax\n");
-        //   }
-            String name = id.toString();
-            CodeGenerator cg = CodeGenerator.getInstance();
-
-            cg.emit("    pop eax\n");
-            cg.emit("    mov [" + name + "], eax\n");
-
+      } else {
+          // ANALISIS SEMANTICO
+          if ("STRING".equals(tipoExpr)) {
+              parser.addError(
+                  "No se puede asignar STRING a variable "
+                  + tipoDest + " (" + dest + ")"
+              );
+          } else {
+            
+              cg.emitLoad(valor); // Hacer push en la pila
+              cg.emit("    pop eax\n"); // guardarlo en eax
+              if ("CHAR".equals(tipoDest)) {
+                  cg.emit("    mov [" + dest + "], al\n"); //CHAR
+              } else {
+                  cg.emit("    mov [" + dest + "], eax\n"); //INT, FLOAT
+              }
+          }
+      }
 
       
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("stmt",13, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-3)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
@@ -1341,8 +1398,7 @@ class CUP$Parser$actions {
           String elseLabel = parser.labelStack.pop(); // no lo usamos
           String endLabel  = parser.labelStack.pop();
 
-           cg.replaceAt(indice, "    je " + endLabel + "\n");
-        //   cg.undoLastEmit();
+           cg.replaceAt(indice, "    je " + endLabel + "\n"); // cambiar el salto a else por un salto a end
 
           // Para IF sin ELSE, simplemente usamos endLabel como fin del IF
           cg.emit(endLabel + ":\n");
@@ -1357,17 +1413,11 @@ class CUP$Parser$actions {
             {
               Object RESULT =null;
 
-        //   // Al terminar el bloque, ponemos la etiqueta de salida
-        //   String exitLabel = parser.labelStack.peek();
-        //   String elseLabel = parser.labelStack.pop();
-        //   codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-        //   cg.emit(elseLabel + ":\n");
          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
 
           String elseLabel = parser.labelStack.pop();   // etiqueta del ELSE
           String endLabel  = parser.labelStack.peek();  // etiqueta de fin (no la sacamos aún)
 
-          // Al terminar el bloque THEN:
           // saltamos al final del IF para NO ejecutar el ELSE
           cg.emit("    jmp " + endLabel + "\n");
 
@@ -1620,8 +1670,28 @@ class CUP$Parser$actions {
           case 84: // bExpr ::= expr EQ expr 
             {
               Object RESULT =null;
+		int e1left = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)).left;
+		int e1right = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)).right;
+		Object e1 = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.elementAt(CUP$Parser$top-2)).value;
+		int e2left = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).left;
+		int e2right = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
+		Object e2 = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
 		
-          CodeGenerator.getInstance().emit(
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          DO a = (DO) e1;
+          DO b = (DO) e2;
+
+          // ANÁLISIS SEMÁNTICO
+          if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
+              parser.addError(
+                  "La comparación de igualdad solo se permite entre INT, se usó: "
+                  + a.tipo + " y " + b.tipo
+              );
+          }
+          cg.emitLoad(a);   // push valor de la izquierda
+          cg.emitLoad(b);   // push valor de la derecha
+
+          cg.emit(
               "    pop ebx\n" +
               "    pop eax\n" +
               "    cmp eax, ebx\n" +
@@ -1746,13 +1816,37 @@ class CUP$Parser$actions {
           case 95: // expr ::= expr PLUS expr 
             {
               Object RESULT =null;
+		int e1left = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)).left;
+		int e1right = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)).right;
+		Object e1 = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.elementAt(CUP$Parser$top-2)).value;
+		int e2left = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).left;
+		int e2right = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
+		Object e2 = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
 		
-          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-          cg.emit("    pop ebx\n"); // Segundo parametro
-          cg.emit("    pop eax\n"); // Primer parametro
-          cg.emit("    add eax, ebx\n"); //Hacer la suma
-          cg.emit("    push eax\n"); //Guardar el resultado en la pila
-      
+            codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+            DO a = (DO) e1;
+            DO b = (DO) e2;
+
+            // ANALISIS SEMANTICO
+            if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
+                parser.addError("Suma solo permitida entre INT, se usó: "
+                                + a.tipo + " + " + b.tipo);
+            }
+
+            //temporal para el resultado
+            String temp = cg.newTemp();
+            cg.declararTemporal(temp, "INT"); 
+            DO res = new DO("INT", DO.OrigenAddr.TEMP, temp);
+
+            cg.emitLoad(a);     // push valor de a
+            cg.emitLoad(b);     // push valor de b
+            cg.emit("    pop ebx\n");
+            cg.emit("    pop eax\n");
+            cg.emit("    add eax, ebx\n");
+            cg.emit("    mov [" + temp + "], eax\n");
+
+            RESULT = res;
+        
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;
@@ -1761,13 +1855,38 @@ class CUP$Parser$actions {
           case 96: // expr ::= expr MINUS expr 
             {
               Object RESULT =null;
+		int e1left = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)).left;
+		int e1right = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)).right;
+		Object e1 = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.elementAt(CUP$Parser$top-2)).value;
+		int e2left = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).left;
+		int e2right = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
+		Object e2 = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
 		
-          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-          cg.emit("    pop ebx\n"); // Segundo parametro
-          cg.emit("    pop eax\n"); // Primer parametro
-          cg.emit("    sub eax, ebx\n"); //Hacer la suma
-          cg.emit("    push eax\n"); //Guardar el resultado en la pila
-      
+        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        DO a = (DO) e1;
+        DO b = (DO) e2;
+
+        // ANÁLISIS SEMÁNTICO
+        if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
+            parser.addError("Resta solo permitida entre INT, se usó: "
+                            + a.tipo + " - " + b.tipo);
+        }
+
+        // Temporal para el resultado
+        String temp = cg.newTemp();
+        cg.declararTemporal(temp, "INT");
+        DO res = new DO("INT", DO.OrigenAddr.TEMP, temp);
+
+        // Código
+        cg.emitLoad(a);   // push valor de a
+        cg.emitLoad(b);   // push valor de b
+        cg.emit("    pop ebx\n");
+        cg.emit("    pop eax\n");
+        cg.emit("    sub eax, ebx\n");
+        cg.emit("    mov [" + temp + "], eax\n");
+
+        RESULT = res;
+    
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;
@@ -1825,10 +1944,9 @@ class CUP$Parser$actions {
 		int nright = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
 		Object n = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
 		
-          // n es el valor (String) del literal, no un Symbol
-          String value = n.toString();
-          CodeGenerator.getInstance().emit("    push " + value + "\n");
-      
+        String value = n.toString();
+        RESULT = new DO("INT", value);  
+    
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;
@@ -1837,7 +1955,13 @@ class CUP$Parser$actions {
           case 103: // expr ::= REAL_LIT 
             {
               Object RESULT =null;
-
+		int rleft = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).left;
+		int rright = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
+		Object r = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
+		
+        String value = r.toString();
+        RESULT = new DO("REAL", value); 
+    
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;
@@ -1855,7 +1979,13 @@ class CUP$Parser$actions {
           case 105: // expr ::= STR_LIT 
             {
               Object RESULT =null;
-
+		int litleft = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).left;
+		int litright = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
+		Object lit = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
+		
+        String raw = (String) lit;          
+        RESULT = new DO("STRING", raw);      
+    
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;
@@ -1864,13 +1994,13 @@ class CUP$Parser$actions {
           case 106: // expr ::= CHAR_LIT 
             {
               Object RESULT =null;
-		int nleft = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).left;
-		int nright = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
-		Object n = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
+		int cleft = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).left;
+		int cright = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
+		Object c = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
 		
-          String value = n.toString();
-          CodeGenerator.getInstance().emit("    push " + value + "\n");
-      
+        String raw = c.toString();
+        RESULT = new DO("CHAR", raw);     
+    
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;
@@ -1883,11 +2013,17 @@ class CUP$Parser$actions {
 		int idright = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
 		Object id = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
 		
-          // Cargar el valor de la variable en la pila
-          String name = id.toString(); 
-          CodeGenerator.getInstance().emit(
-              "    push dword [" + name + "]\n"
-          );
+        String name = id.toString();
+        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        String tipo = cg.getGlobalType(name);
+
+        // ANALISIS SEMANTICO
+        if (tipo == null) {
+            parser.addError("Variable no declarada: " + name);
+            tipo = "INT"; // para no romper el resto
+        }
+
+        RESULT = new DO(tipo, DO.OrigenAddr.VAR, name); 
       
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
@@ -1915,12 +2051,33 @@ class CUP$Parser$actions {
           case 110: // expr ::= expr INC 
             {
               Object RESULT =null;
+		int e1left = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-1)).left;
+		int e1right = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-1)).right;
+		Object e1 = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.elementAt(CUP$Parser$top-1)).value;
 		
-      CodeGenerator.getInstance().emit(
-          "    pop eax\n" +
-          "    inc eax\n" +
-          "    push eax\n"
-      );
+        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        DO d = (DO) e1;
+
+        // ANALISIS SEMANTICO
+        if (!"INT".equals(d.tipo)) {
+            parser.addError("INC solo permitido sobre INT, se usó: " + d.tipo);
+        }
+        if (d.clase != DO.Clase.ADDR) {
+            parser.addError("INC solo permitido sobre direcciones (variables/temporales)");
+        }
+        // push en la pila
+        cg.emitLoad(d);
+        // incrementar
+        cg.emit("    pop eax\n");
+        cg.emit("    inc eax\n");
+        cg.emit("    mov [" + d.nombre + "], eax\n");
+
+        // guardar resultado en un temporal
+        String temp = cg.newTemp();
+        cg.declararTemporal(temp, "INT");
+        cg.emit("    mov [" + temp + "], eax\n");
+
+        RESULT = new DO("INT", DO.OrigenAddr.TEMP, temp);
     
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-1)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
@@ -1930,12 +2087,30 @@ class CUP$Parser$actions {
           case 111: // expr ::= expr DEC 
             {
               Object RESULT =null;
+		int e1left = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-1)).left;
+		int e1right = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-1)).right;
+		Object e1 = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.elementAt(CUP$Parser$top-1)).value;
 		
-        CodeGenerator.getInstance().emit(
-            "    pop eax\n" +
-            "    dec eax\n" +
-            "    push eax\n"
-        );
+        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        DO d = (DO) e1;
+        // ANALISIS SEMANTICO
+        if (!"INT".equals(d.tipo)) {
+            parser.addError("DEC solo permitido sobre INT, se usó: " + d.tipo);
+        }
+        if (d.clase != DO.Clase.ADDR) {
+            parser.addError("DEC solo permitido sobre direcciones (variables/temporales)");
+        }
+
+        cg.emitLoad(d);
+        cg.emit("    pop eax\n");
+        cg.emit("    dec eax\n");
+        cg.emit("    mov [" + d.nombre + "], eax\n");
+
+        String temp = cg.newTemp();
+        cg.declararTemporal(temp, "INT");
+        cg.emit("    mov [" + temp + "], eax\n");
+
+        RESULT = new DO("INT", DO.OrigenAddr.TEMP, temp);
     
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-1)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }

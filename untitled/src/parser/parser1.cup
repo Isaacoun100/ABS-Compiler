@@ -12,64 +12,17 @@ import codigo.CodeGenerator;
  */
 parser code {:
 
-    // DATA OBJECT
-    //Lo agregue para ordenar y facilitar varias cosas de analisis semantico y generacion de codigo
-    public static class DO {
+  // Listado de errores del parser
+  public ArrayList<String> synErrors = new ArrayList<>();
+  private boolean errorRecovering = false;
 
-        public enum Clase {
-            CONST,   // constante
-            ADDR     //direccion
-        }
-
-        public enum OrigenAddr {
-            VAR,     // variable
-            TEMP     // var temporal
-        }
-
-        public String tipo;        
-        public Clase clase;
-
-        // Si es constante
-        public String valorConst; 
-        // Si es una direccion
-        public OrigenAddr origen;
-        public String nombre;      // nombre de la variable o del temporal
-
-        // constructor para constantes
-        public DO(String tipo, String valorConst) {
-            this.tipo = tipo;
-            this.clase = Clase.CONST;
-            this.valorConst = valorConst;
-        }
-        // constructor para direcciones
-        public DO(String tipo, OrigenAddr origen, String nombre) {
-            this.tipo = tipo;
-            this.clase = Clase.ADDR;
-            this.origen = origen;
-            this.nombre = nombre;
-        }
-    }
-
-    // pila de labels
-    public java.util.Stack<String> labelStack = new java.util.Stack<>();
-
+  public java.util.Stack<String> labelStack = new java.util.Stack<>();
     private int labelCounter = 0;
     public String newLabel(String base) {
         return base + "_" + (labelCounter++);
     }
-
-    // pila de indices solo importa para el reajuste en el if_else
     public java.util.Stack<Integer> indices = new java.util.Stack<>();
 
-    // Para ir acumulando los IDs de una declaración (a, b, c: INT;)
-    public java.util.List<String> tmpIdList = new java.util.ArrayList<>();
-
-    // Para guardar el tipo actual (INT, REAL, STRING, CHAR)
-    public String tmpType = null;
-
-    // Listado de errores del parser
-    public ArrayList<String> synErrors = new ArrayList<>();
-    private boolean errorRecovering = false;
   /**
   * Override for the report_error function to provide a better error message
   * @param msg
@@ -128,8 +81,24 @@ parser code {:
     }
   }
 
-  
+  // Para ir acumulando los IDs de una declaración (a, b, c: INT;)
+  public java.util.List<String> tmpIdList = new java.util.ArrayList<>();
 
+  // Para guardar el tipo actual (INT, REAL, STRING, CHAR)
+  public String tmpType = null;
+
+  public String currentAssignTarget = null;      // nombre de la variable a la que se está asignando
+  public boolean assignHandledInExpr = false;    // si el código de asignación ya se generó en expr (strings)
+
+    public static class StringExprInfo {
+      public boolean isVar;  // true si es una variable, false si es literal
+      public String text;    // nombre de la variable o texto del literal
+
+      public StringExprInfo(boolean isVar, String text) {
+          this.isVar = isVar;
+          this.text  = text;
+      }
+  }
 :};
 
 // ====================== Terminals ====================== //
@@ -223,6 +192,8 @@ stmt_list ::=
 //  - `id_list`   = a, b, c
 //  - `type_spec` = TINT | TREAL | TSTRING | TCHAR
 
+
+
 decls_opt ::= var_sections | /* vacío */ ;
 
 
@@ -265,9 +236,10 @@ decl_item ::=
 
 id_list ::= id_list COMMA ID:id
       {:
+      // Añadimos otro identificador a la lista actual
         parser.tmpIdList.add(id.toString());
       :}
-| ID:id
+| ID:id  // ID: id guardar el valor del id para poder usarlo
       {:
           // Empezamos una nueva lista de IDs para esta declaración
           parser.tmpIdList.clear();
@@ -373,49 +345,88 @@ stmt ::=
     
     // Asignaciones
     // ID ASSIGN expr SEMI
-    ID:id ASSIGN expr:e SEMI
+    ID:id ASSIGN expr:e SEMI // devolver el resultado de la exprecion e 
       {:
-      
-      String dest = id.toString();
-      codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-      String tipoDest = cg.getGlobalType(dest);
+          // // expr genero un "push <valor>"
+          // String name = id.toString();
 
-      DO valor = (DO) e;           
-      String tipoExpr = valor.tipo;
+          // CodeGenerator.getInstance().emit(
+          //     "    pop eax\n" +
+          //     "    mov [" + name + "], eax\n"
+          // );
 
-      if (tipoDest == null) {
-          parser.addError("Variable no declarada: " + dest); //ANALISIS SEMANTICO
-      } else if ("STRING".equals(tipoDest)) {
-          // ANALISIS SEMANTICO
-          if (!"STRING".equals(tipoExpr)) {
-              parser.addError("No se puede asignar " + tipoExpr
-                              + " a variable STRING " + dest);
-          } else {
-              if (valor.clase == DO.Clase.CONST) { // si se sta asignando un string directo a la variable
-                  cg.emitCopyStringLiteral(dest, valor.valorConst);
-              } else { // Si se estan asignando a una variable tipo string el contenido de otra tipo string
-                  cg.emitCopyStringVar(dest, valor.nombre);
-              }
-          }
+        //   String name = id.toString();
+        //   String tipo = codigo.CodeGenerator.getInstance().getGlobalType(name);
+        //   CodeGenerator cg = CodeGenerator.getInstance();
 
-      } else {
-          // ANALISIS SEMANTICO
-          if ("STRING".equals(tipoExpr)) {
-              parser.addError(
-                  "No se puede asignar STRING a variable "
-                  + tipoDest + " (" + dest + ")"
-              );
-          } else {
+        //   cg.emit("    pop eax\n");
+
+        //   if ("CHAR".equals(tipo)) {
+        //       // variable de 1 byte: guardamos solo AL
+        //       cg.emit("    mov [" + name + "], al\n");
+        //   } else {
+        //       // INT / REAL / STRING (por ahora todos en 4 bytes)
+        //       cg.emit("    mov [" + name + "], eax\n");
+        //   }
+            // String name = id.toString();
+            // CodeGenerator cg = CodeGenerator.getInstance();
+
+            // cg.emit("    pop eax\n");
+            // cg.emit("    mov [" + name + "], eax\n");
+            // String name = id.toString();
+            // codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+            // String tipo = cg.getGlobalType(name);
             
-              cg.emitLoad(valor); // Hacer push en la pila
-              cg.emit("    pop eax\n"); // guardarlo en eax
-              if ("CHAR".equals(tipoDest)) {
-                  cg.emit("    mov [" + dest + "], al\n"); //CHAR
+            // if ("CHAR".equals(tipo)) {
+            //     cg.emit("    pop eax\n");
+            //     cg.emit("    mov [" + name + "], al\n");
+            // } else if ("INT".equals(tipo) || "REAL".equals(tipo)) {
+            //     cg.emit("    pop eax\n");
+            //     cg.emit("    mov [" + name + "], eax\n");
+            // } else if ("STRING".equals(tipo)) {
+            //     parser.addError("Asignación inválida: no se puede asignar una expresión numérica a STRING (" + name + ")");
+            // }
+            
+          String name = id.toString();
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          String tipo = cg.getGlobalType(name);
+
+          if (tipo == null) {
+              parser.addError("Variable no declarada: " + name);
+          } else if ("STRING".equals(tipo)) {
+              // Esperamos que expr nos haya dado info de string
+              if (e instanceof parser.StringExprInfo) {
+                  parser.StringExprInfo info = (parser.StringExprInfo) e;
+
+                  if (info.isVar) {
+                      // a := b;  (ambas STRING)
+                      cg.emitCopyStringVar(name, info.text);
+                  } else {
+                      // a := "hola";
+                      cg.emitCopyStringLiteral(name, info.text);
+                  }
               } else {
-                  cg.emit("    mov [" + dest + "], eax\n"); //INT, FLOAT
+                  parser.addError(
+                    "La expresión a asignar a la variable STRING " + name + " no es de tipo STRING"
+                  );
+              }
+          } else {
+              // INT, REAL, CHAR: comportamiento normal
+              if (e instanceof parser.StringExprInfo) {
+                  parser.addError(
+                    "No se puede asignar una expresión STRING a la variable " + name +
+                    " de tipo " + tipo
+                  );
+              } else {
+                  cg.emit("    pop eax\n");
+                  if ("CHAR".equals(tipo)) {
+                      cg.emit("    mov [" + name + "], al\n");
+                  } else {
+                      cg.emit("    mov [" + name + "], eax\n");
+                  }
               }
           }
-      }
+      
 
       :}
   | ID ASSIGN bExpr SEMI
@@ -451,7 +462,8 @@ stmt ::=
           String elseLabel = parser.labelStack.pop(); // no lo usamos
           String endLabel  = parser.labelStack.pop();
 
-           cg.replaceAt(indice, "    je " + endLabel + "\n"); // cambiar el salto a else por un salto a end
+           cg.replaceAt(indice, "    je " + endLabel + "\n");
+        //   cg.undoLastEmit();
 
           // Para IF sin ELSE, simplemente usamos endLabel como fin del IF
           cg.emit(endLabel + ":\n");
@@ -461,11 +473,17 @@ stmt ::=
  
   | IF if_cond THEN block ELSE 
         {:
+        //   // Al terminar el bloque, ponemos la etiqueta de salida
+        //   String exitLabel = parser.labelStack.peek();
+        //   String elseLabel = parser.labelStack.pop();
+        //   codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        //   cg.emit(elseLabel + ":\n");
          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
 
           String elseLabel = parser.labelStack.pop();   // etiqueta del ELSE
           String endLabel  = parser.labelStack.peek();  // etiqueta de fin (no la sacamos aún)
 
+          // Al terminar el bloque THEN:
           // saltamos al final del IF para NO ejecutar el ELSE
           cg.emit("    jmp " + endLabel + "\n");
 
@@ -521,6 +539,10 @@ stmt ::=
 
   ;
 
+// ==================== IF sencillo (sin ELSE) ====================
+
+// Parte de adelante del IF:  IF <bExpr> THEN
+
 //================================================================================================================
 
 args_opt  ::= /* vacío */ | args_plus ;
@@ -539,6 +561,16 @@ write_args ::=
 
 // ==================== EXPRESIONES BOOLEANAS (SIN conflictos) ====================
 
+
+//    bExpr ::=
+//       expr EQ expr | expr NE expr | expr LT expr
+//     | expr LE expr | expr GT expr | expr GE expr
+//     | bExpr OR bExpr
+//     | bExpr AND bExpr
+//     | NOT bExpr
+//     | LPAREN bExpr RPAREN
+//     ;
+
 //   - Comparaciones entre expresiones aritméticas.
 //   - Conectores: OR / AND / NOT.
 //   - Paréntesis para agrupar.
@@ -548,23 +580,9 @@ write_args ::=
 //     `NOT` se aplica directamente sobre bExpr.
 
 bExpr ::=
-    expr:e1 EQ expr:e2
+    expr EQ expr
       {:
-          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-          DO a = (DO) e1;
-          DO b = (DO) e2;
-
-          // ANÁLISIS SEMÁNTICO
-          if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
-              parser.addError(
-                  "La comparación de igualdad solo se permite entre INT, se usó: "
-                  + a.tipo + " y " + b.tipo
-              );
-          }
-          cg.emitLoad(a);   // push valor de la izquierda
-          cg.emitLoad(b);   // push valor de la derecha
-
-          cg.emit(
+          CodeGenerator.getInstance().emit(
               "    pop ebx\n" +
               "    pop eax\n" +
               "    cmp eax, ebx\n" +
@@ -609,6 +627,18 @@ if_cond ::=
 
 // ==================== EXPRESIONES ARITMÉTICAS (SIN conflictos) ====================
 
+//expr ::=
+//       expr PLUS expr
+//     | expr MINUS expr
+//     | expr TIMES expr
+//     | expr DIVIDE expr
+//     | expr MOD expr
+//     | expr INTDIV expr
+//     | MINUS expr %prec UMINUS
+//     | INT_LIT | REAL_LIT | HEX_LIT | STR_LIT | CHAR_LIT | OCT_LIT | ID
+//     | LPAREN expr RPAREN
+//     ;
+
 //   - Operadores binarios: +, -, *, /, MOD, DIV.
 //   - Menos unario: `-x` (%prec UMINUS) con mayor
 //     prioridad que los binarios (p.ej. `-a * b`
@@ -622,59 +652,22 @@ if_cond ::=
 
 expr ::=
     // expr PLUS expr
-    expr:e1 PLUS expr:e2
-        {:
-            codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-            DO a = (DO) e1;
-            DO b = (DO) e2;
-
-            // ANALISIS SEMANTICO
-            if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
-                parser.addError("Suma solo permitida entre INT, se usó: "
-                                + a.tipo + " + " + b.tipo);
-            }
-
-            //temporal para el resultado
-            String temp = cg.newTemp();
-            cg.declararTemporal(temp, "INT"); 
-            DO res = new DO("INT", DO.OrigenAddr.TEMP, temp);
-
-            cg.emitLoad(a);     // push valor de a
-            cg.emitLoad(b);     // push valor de b
-            cg.emit("    pop ebx\n");
-            cg.emit("    pop eax\n");
-            cg.emit("    add eax, ebx\n");
-            cg.emit("    mov [" + temp + "], eax\n");
-
-            RESULT = res;
-        :}
-  | expr: e1 MINUS expr: e2
+    expr PLUS expr
       {:
-        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-        DO a = (DO) e1;
-        DO b = (DO) e2;
-
-        // ANÁLISIS SEMÁNTICO
-        if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
-            parser.addError("Resta solo permitida entre INT, se usó: "
-                            + a.tipo + " - " + b.tipo);
-        }
-
-        // Temporal para el resultado
-        String temp = cg.newTemp();
-        cg.declararTemporal(temp, "INT");
-        DO res = new DO("INT", DO.OrigenAddr.TEMP, temp);
-
-        // Código
-        cg.emitLoad(a);   // push valor de a
-        cg.emitLoad(b);   // push valor de b
-        cg.emit("    pop ebx\n");
-        cg.emit("    pop eax\n");
-        cg.emit("    sub eax, ebx\n");
-        cg.emit("    mov [" + temp + "], eax\n");
-
-        RESULT = res;
-    :}
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          cg.emit("    pop ebx\n"); // Segundo parametro
+          cg.emit("    pop eax\n"); // Primer parametro
+          cg.emit("    add eax, ebx\n"); //Hacer la suma
+          cg.emit("    push eax\n"); //Guardar el resultado en la pila
+      :}
+  | expr MINUS expr
+      {:
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          cg.emit("    pop ebx\n"); // Segundo parametro
+          cg.emit("    pop eax\n"); // Primer parametro
+          cg.emit("    sub eax, ebx\n"); //Hacer la suma
+          cg.emit("    push eax\n"); //Guardar el resultado en la pila
+      :}
   | expr TIMES expr
   | expr DIVIDE expr
   | expr MOD expr
@@ -683,91 +676,53 @@ expr ::=
 
   | INT_LIT:n
       {:
-        String value = n.toString();
-        RESULT = new DO("INT", value);  
-    :}
+          // n es el valor (String) del literal, no un Symbol
+          String value = n.toString();
+          CodeGenerator.getInstance().emit("    push " + value + "\n");
+      :}
   | REAL_LIT:r
       {:
-        String value = r.toString();
-        RESULT = new DO("REAL", value); 
-    :}
+          String value = r.toString();
+          // Por ahora lo tratamos como un valor de 32 bits "normal"
+          CodeGenerator.getInstance().emit("    push " + value + "\n");
+      :}
   | HEX_LIT
   | STR_LIT:lit
     {:
-        String raw = (String) lit;          
-        RESULT = new DO("STRING", raw);      
+       RESULT = lit;
     :}
   
-  | CHAR_LIT:c
+  | CHAR_LIT:n
       {:
-        String raw = c.toString();
-        RESULT = new DO("CHAR", raw);     
-    :}
+          String value = n.toString();
+          CodeGenerator.getInstance().emit("    push " + value + "\n");
+      :}
   // | ID
   | ID:id
       {:
-        String name = id.toString();
-        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-        String tipo = cg.getGlobalType(name);
-
-        // ANALISIS SEMANTICO
-        if (tipo == null) {
-            parser.addError("Variable no declarada: " + name);
-            tipo = "INT"; // para no romper el resto
-        }
-
-        RESULT = new DO(tipo, DO.OrigenAddr.VAR, name); 
+          // Cargar el valor de la variable en la pila
+          String name = id.toString(); 
+          CodeGenerator.getInstance().emit(
+              "    push dword [" + name + "]\n"
+          );
       :}
   | LPAREN expr RPAREN
   | ID LPAREN args_opt RPAREN
-  | expr:e1 INC
+  | expr INC
     {:
-        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-        DO d = (DO) e1;
-
-        // ANALISIS SEMANTICO
-        if (!"INT".equals(d.tipo)) {
-            parser.addError("INC solo permitido sobre INT, se usó: " + d.tipo);
-        }
-        if (d.clase != DO.Clase.ADDR) {
-            parser.addError("INC solo permitido sobre direcciones (variables/temporales)");
-        }
-        // push en la pila
-        cg.emitLoad(d);
-        // incrementar
-        cg.emit("    pop eax\n");
-        cg.emit("    inc eax\n");
-        cg.emit("    mov [" + d.nombre + "], eax\n");
-
-        // guardar resultado en un temporal
-        String temp = cg.newTemp();
-        cg.declararTemporal(temp, "INT");
-        cg.emit("    mov [" + temp + "], eax\n");
-
-        RESULT = new DO("INT", DO.OrigenAddr.TEMP, temp);
+      CodeGenerator.getInstance().emit(
+          "    pop eax\n" +
+          "    inc eax\n" +
+          "    push eax\n"
+      );
     :}
-  | expr:e1 DEC
+  | expr DEC
     {:
-        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-        DO d = (DO) e1;
-        // ANALISIS SEMANTICO
-        if (!"INT".equals(d.tipo)) {
-            parser.addError("DEC solo permitido sobre INT, se usó: " + d.tipo);
-        }
-        if (d.clase != DO.Clase.ADDR) {
-            parser.addError("DEC solo permitido sobre direcciones (variables/temporales)");
-        }
-
-        cg.emitLoad(d);
-        cg.emit("    pop eax\n");
-        cg.emit("    dec eax\n");
-        cg.emit("    mov [" + d.nombre + "], eax\n");
-
-        String temp = cg.newTemp();
-        cg.declararTemporal(temp, "INT");
-        cg.emit("    mov [" + temp + "], eax\n");
-
-        RESULT = new DO("INT", DO.OrigenAddr.TEMP, temp);
+        CodeGenerator.getInstance().emit(
+            "    pop eax\n" +
+            "    dec eax\n" +
+            "    push eax\n"
+        );
     :}
 
   // Recuperación específica para token ERROR (devuelto por el scanner)
