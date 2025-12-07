@@ -17,10 +17,11 @@ parser code {:
   private boolean errorRecovering = false;
 
   public java.util.Stack<String> labelStack = new java.util.Stack<>();
-
+    private int labelCounter = 0;
     public String newLabel(String base) {
         return base + "_" + (labelCounter++);
     }
+    public java.util.Stack<Integer> indices = new java.util.Stack<>();
 
   /**
   * Override for the report_error function to provide a better error message
@@ -109,7 +110,7 @@ non terminal funcs_opt, func_list, func, proc, param_secs, param_sec, id_list, b
 non terminal stmt_list, stmt, expr, bExpr;
 non terminal func_block, proc_block, return_stmt;
 non terminal args_opt, args_plus, write_args, var_sections, var_sections_tail, decl_items, decl_item, decl_items_tail;
-
+non terminal if_cond;
 // ==================== Precedence Table ==================== //
 // Denfies the order of max prior, it tells cup how to resolve conflicts, to know what operator has a higher
 // priority, which to group when there's repetition, it helps avoids ambiguity
@@ -387,9 +388,50 @@ stmt ::=
       {: parser.addError("Línea " + eleft + ": Falta ';' después de la llamada"); :}
 
   // IF statements
-   | IF bExpr THEN block
+   | IF if_cond THEN block
+      {:
+
+        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          int indice = parser.indices.pop();
+          String elseLabel = parser.labelStack.pop(); // no lo usamos
+          String endLabel  = parser.labelStack.pop();
+
+           cg.replaceAt(indice, "    je " + endLabel + "\n");
+        //   cg.undoLastEmit();
+
+          // Para IF sin ELSE, simplemente usamos endLabel como fin del IF
+          cg.emit(endLabel + ":\n");
+
+      :}
+
  
-  | IF bExpr THEN block ELSE block
+  | IF if_cond THEN block ELSE 
+        {:
+        //   // Al terminar el bloque, ponemos la etiqueta de salida
+        //   String exitLabel = parser.labelStack.peek();
+        //   String elseLabel = parser.labelStack.pop();
+        //   codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        //   cg.emit(elseLabel + ":\n");
+         codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+
+          String elseLabel = parser.labelStack.pop();   // etiqueta del ELSE
+          String endLabel  = parser.labelStack.peek();  // etiqueta de fin (no la sacamos aún)
+
+          // Al terminar el bloque THEN:
+          // saltamos al final del IF para NO ejecutar el ELSE
+          cg.emit("    jmp " + endLabel + "\n");
+
+          // Y ahora abrimos el bloque ELSE
+          cg.emit(elseLabel + ":\n");
+      :}
+  block
+    {:
+          // Al terminar el bloque, ponemos la etiqueta de salida
+          String exitLabel = parser.labelStack.pop();
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          cg.emit(exitLabel + ":\n");
+      :}
+
 
   | IF bExpr error:e block
       {: parser.addError("Línea " + eleft + ": Falta THEN en estructura IF"); :}
@@ -430,6 +472,10 @@ stmt ::=
       {: parser.addError("Línea " + ((Symbol)lex).left + ": Error léxico en la sentencia"); :}
 
   ;
+
+// ==================== IF sencillo (sin ELSE) ====================
+
+// Parte de adelante del IF:  IF <bExpr> THEN
 
 //================================================================================================================
 
@@ -489,7 +535,28 @@ bExpr ::=
   | NOT bExpr
   | LPAREN bExpr RPAREN
   ;
+if_cond ::= 
+    bExpr
+      {:
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
 
+          // Creamos una etiqueta única de salida del IF
+          String exitLabel = parser.newLabel("endif");
+          String elseLabel = parser.newLabel("startElse");
+          // La guardamos en la pila semántica para usarla al final del IF
+          
+          parser.labelStack.push(exitLabel);
+          parser.labelStack.push(elseLabel);
+          // En la pila tenemos el resultado booleano de bExpr (0 o 1)
+          cg.emit(
+              "    pop eax\n" +
+              "    cmp eax, 0\n" 
+          );
+        //   cg.emit("    je " + elseLabel + "\n");
+          int indice = cg.emitAndGetIndex("    je " + elseLabel + "\n");
+          parser.indices.push(indice);
+      :}
+  ;
 //================================================================================================================
 
 // ==================== EXPRESIONES ARITMÉTICAS (SIN conflictos) ====================

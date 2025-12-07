@@ -53,6 +53,17 @@ public class CodeGenerator {
         mainCode.add(instr);
     }
 
+     public int emitAndGetIndex(String instr) {
+        mainCode.add(instr);
+        return mainCode.size() - 1;
+    }
+
+    // Reemplazar la instrucción en una posición específica
+    public void replaceAt(int index, String newInstr) {
+        if (index >= 0 && index < mainCode.size()) {
+            mainCode.set(index, newInstr);
+        }
+    }
     //--------------GENERAR LABELS------------//
     // Genera labels unicos con un numero que se va incrementando
     // TODO: podriamos hacerlo mas bonito

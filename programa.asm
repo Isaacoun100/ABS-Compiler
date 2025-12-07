@@ -18,6 +18,9 @@ main:
     push 5
     pop eax
     mov [b], eax
+    push 0
+    pop eax
+    mov [c], eax
     push dword [a]
     push dword [b]
     pop ebx
@@ -26,7 +29,11 @@ main:
     sete al
     movzx eax, al
     push eax
+    pop eax
+    cmp eax, 0
+    je endif_0
     push 100
     pop eax
     mov [c], eax
+endif_0:
     ret
