@@ -1,14 +1,13 @@
-PROGRAM PruebaIfElse
-VAR a, b, c: INT;
+PROGRAM Prueba
+VAR
+  x, y: INT;
+  r: REAL;
+  nombre: STRING;
+  letra: CHAR;
 
 BEGIN
   a := 2;
   b := 5;
   c := 0;
-
-  IF a = b THEN
-  BEGIN
-    c := 100;     (* rama THEN: NO debería ejecutarse *)
-  END
 
 END

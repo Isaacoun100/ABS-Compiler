@@ -355,11 +355,24 @@ stmt ::=
         //       // INT / REAL / STRING (por ahora todos en 4 bytes)
         //       cg.emit("    mov [" + name + "], eax\n");
         //   }
-            String name = id.toString();
-            CodeGenerator cg = CodeGenerator.getInstance();
+            // String name = id.toString();
+            // CodeGenerator cg = CodeGenerator.getInstance();
 
-            cg.emit("    pop eax\n");
-            cg.emit("    mov [" + name + "], eax\n");
+            // cg.emit("    pop eax\n");
+            // cg.emit("    mov [" + name + "], eax\n");
+            String name = id.toString();
+            codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+            String tipo = cg.getGlobalType(name);
+            
+            if ("CHAR".equals(tipo)) {
+                cg.emit("    pop eax\n");
+                cg.emit("    mov [" + name + "], al\n");
+            } else if ("INT".equals(tipo) || "REAL".equals(tipo)) {
+                cg.emit("    pop eax\n");
+                cg.emit("    mov [" + name + "], eax\n");
+            } else if ("STRING".equals(tipo)) {
+                parser.addError("Asignación inválida: no se puede asignar una expresión numérica a STRING (" + name + ")");
+            }
 
 
       :}
@@ -614,7 +627,12 @@ expr ::=
           String value = n.toString();
           CodeGenerator.getInstance().emit("    push " + value + "\n");
       :}
-  | REAL_LIT
+  | REAL_LIT:r
+      {:
+          String value = r.toString();
+          // Por ahora lo tratamos como un valor de 32 bits "normal"
+          CodeGenerator.getInstance().emit("    push " + value + "\n");
+      :}
   | HEX_LIT
   | STR_LIT
   

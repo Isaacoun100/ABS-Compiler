@@ -77,26 +77,42 @@ public class CodeGenerator {
         return "t" + (tempCounter++);
     }
 
+    public void emitCopyStringLiteral(String varName, String literal) {
+        // literal probablemente viene como "Hola" o Hola.
+        String value = literal;
 
+        if (value.length() >= 2 &&
+            value.charAt(0) == '"' &&
+            value.charAt(value.length() - 1) == '"') {
+            value = value.substring(1, value.length() - 1);
+        }
+
+        // Copiar carácter por carácter en varName
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            mainCode.add("    mov byte [" + varName + " + " + i + "], " + (int) c);
+        }
+
+        // Terminador nulo
+        mainCode.add("    mov byte [" + varName + " + " + value.length() + "], 0");
+    }
     // ---------------------------GENERAR CODIGO NASM-------------------------//
 
     public String buildProgram() {
         StringBuilder sb = new StringBuilder();
-
-        //Encabezado del archivo
-        sb.append("global main\n");
-        sb.append("extern printf\n\n");
+        
+        //LIBRERIA: IO.mac   
+        sb.append("%include \"io.mac\"\n\n");
 
         // Seccion .data para variables globales
-        sb.append("section .data\n");
-        // para imprimir con printf
-        sb.append("    fmtInt db \"%d\", 10, 0\n");
-
+        sb.append(".DATA\n");
         
-        sb.append('\n');
+        
+        sb.append("\n");
 
         //Para variables sin valor inicial
-        sb.append("section .bss\n\n");
+        sb.append(".UDATA\n\n");
+
         //Escribir todas las variables globales que se encontraron
         
         for (Map.Entry<String, String> e : globalVars.entrySet()) {
@@ -107,18 +123,44 @@ public class CodeGenerator {
             //agregarlo al docu
             sb.append("    ").append(nombre);
             
-            if (tipo.equals("CHAR")) {
-                sb.append(" resb 1\n"); //1 byte
-            } else {
-                sb.append(" resd 1\n"); // 4 bytes
+            // if (tipo.equals("CHAR")) {
+            //     sb.append(" resb 1\n"); //1 byte
+            // } else {
+            //     sb.append(" resd 1\n"); // 4 bytes
+            // }
+
+             switch (tipo) {
+                case "CHAR":
+                    // 1 byte
+                    sb.append(" resb 1\n");
+                    break;
+
+                case "INT":
+                    sb.append(" resd 1\n");
+                    break;
+                case "REAL":
+                    sb.append(" resd 1\n");
+                    break;
+
+                case "STRING":
+                    //256 bytes para un string
+                    sb.append(" resb 256\n");
+                    break;
+
+                default:
+                    
+                    sb.append(" resd 1\n");
+                    break;
             }
-   
+        
         }
 
         sb.append("\n");
 
         // -------- .text: código del main ---
-        sb.append("section .text\n");
+        sb.append(".CODE\n");
+        sb.append(".STARTUP\n");
+
         sb.append("main:\n");
 
         //Instrucciones del main
@@ -129,7 +171,12 @@ public class CodeGenerator {
             }
         }
         
-        sb.append("    ret\n");
+        // sb.append("    mov eax, 1\n");
+        // sb.append("    xor ebx, ebx\n");
+        // sb.append("    int 0x80\n");
+        sb.append("done:\n");
+        sb.append("    .EXIT\n");
+
         return sb.toString();
     }
 
