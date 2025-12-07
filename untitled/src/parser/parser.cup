@@ -432,6 +432,11 @@ stmt ::=
 
   // WRITE
   | WRITE LPAREN write_args RPAREN SEMI
+    {:
+        // Al final del WRITE metemos un salto de línea
+        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        cg.emit("    nwln\n");
+    :}
   | WRITE LPAREN write_args RPAREN error:e
       {: parser.addError("Línea " + eleft + ": Falta ';' después de WRITE"); :}
   | WRITE error:e SEMI
@@ -531,8 +536,18 @@ args_plus ::=
   ;
 
 write_args ::=
-    expr
-  | write_args COMMA expr
+    expr:e
+      {:
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          Parser.DO d = (Parser.DO) e;
+          cg.emitWrite(d);
+      :}
+  | write_args COMMA expr:e
+      {:
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          Parser.DO d = (Parser.DO) e;
+          cg.emitWrite(d);
+      :}
   ;
 
 //================================================================================================================

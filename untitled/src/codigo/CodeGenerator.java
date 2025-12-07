@@ -57,6 +57,61 @@ public class CodeGenerator {
         return mainCode.size() - 1;
     }
 
+    public void emitirLiteralEnTemporal(Parser.DO d) {
+        // d.tipo == "STRING" y d.clase == CONST
+        String tmp = newTemp();
+        declararTemporal(tmp, "STRING");         // resb 256 en .UDATA
+        emitCopyStringLiteral(tmp, d.valorConst);
+        // ahora tmp contiene el literal como string NULL-terminated
+        // y podemos hacer PutStr tmp
+    }
+
+    public void emitWrite(Parser.DO d) {
+        switch (d.tipo) {
+            case "INT":
+            case "REAL":
+                // Enteros / reales como 32 bits con PutLint
+                if (d.clase == Parser.DO.Clase.CONST) {
+                    // literal numérico
+                    emit("    mov eax, " + d.valorConst + "\n");
+                    emit("    PutLInt eax\n");
+                } else { // ADDR (variable o temporal)
+                    emit("    PutLInt [" + d.nombre + "]\n");
+                }
+                break;
+
+            case "CHAR":
+                if (d.clase == Parser.DO.Clase.CONST) {
+                    // d.valorConst debería ser el código numérico o el literal,
+                    // según cómo lo estés guardando. Si lo guardas como 'A',
+                    // tendrás que adaptarlo. De momento asumimos número.
+                    emit("    mov al, " + d.valorConst + "\n");
+                    emit("    PutCh al\n");
+                } else {
+                    emit("    PutCh [" + d.nombre + "]\n");
+                }
+                break;
+
+            case "STRING":
+                if (d.clase == Parser.DO.Clase.CONST) {
+                    // WRITE("hola")
+                    String tmp = newTemp();
+                    declararTemporal(tmp, "STRING");
+                    emitCopyStringLiteral(tmp, d.valorConst);
+                    emit("    PutStr " + tmp + "\n");
+                } else {
+                    // WRITE(s1) donde s1 es STRING en memoria
+                    emit("    PutStr " + d.nombre + "\n");
+                }
+                break;
+
+            default:
+                // Por si sale algo raro
+                System.err.println("emitWrite: tipo no soportado: " + d.tipo);
+                break;
+        }
+    }
+
     // Reemplazar la instrucción en una posición específica
     public void replaceAt(int index, String newInstr) {
         if (index >= 0 && index < mainCode.size()) {

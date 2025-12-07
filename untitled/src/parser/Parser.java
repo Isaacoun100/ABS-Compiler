@@ -1337,7 +1337,11 @@ class CUP$Parser$actions {
           case 55: // stmt ::= WRITE LPAREN write_args RPAREN SEMI 
             {
               Object RESULT =null;
-
+		
+        // Al final del WRITE metemos un salto de línea
+        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        cg.emit("    nwln\n");
+    
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("stmt",13, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-4)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;
@@ -1652,7 +1656,14 @@ class CUP$Parser$actions {
           case 82: // write_args ::= expr 
             {
               Object RESULT =null;
-
+		int eleft = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).left;
+		int eright = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
+		Object e = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
+		
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          Parser.DO d = (Parser.DO) e;
+          cg.emitWrite(d);
+      
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("write_args",21, ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;
@@ -1661,7 +1672,14 @@ class CUP$Parser$actions {
           case 83: // write_args ::= write_args COMMA expr 
             {
               Object RESULT =null;
-
+		int eleft = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).left;
+		int eright = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
+		Object e = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
+		
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          Parser.DO d = (Parser.DO) e;
+          cg.emitWrite(d);
+      
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("write_args",21, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
           return CUP$Parser$result;

@@ -9,10 +9,10 @@
     x resd 1
     y resd 1
     z resd 1
+    c resb 1
     t0 resd 1
     t1 resd 1
-    t2 resd 1
-    t3 resd 1
+    t2 resb 256
 
 .CODE
 .STARTUP
@@ -33,7 +33,7 @@ copyStr_loop_1:
     inc edi
     jmp copyStr_loop_1
 copyStr_end_2:
-    push 5
+    push 10
     pop eax
     mov [x], eax
     push 3
@@ -48,62 +48,39 @@ copyStr_end_2:
     push dword [t0]
     pop eax
     mov [z], eax
+    push 'A'
+    pop eax
+    mov [c], al
+    PutLInt [x]
+    nwln
+    mov eax, 42
+    PutLInt eax
+    nwln
     push dword [z]
-    push 2
+    push 1
     pop ebx
     pop eax
-    sub eax, ebx
+    add eax, ebx
     mov [t1], eax
-    push dword [t1]
-    pop eax
-    mov [z], eax
-    push dword [x]
-    pop eax
-    inc eax
-    mov [x], eax
-    mov [t2], eax
-    push dword [t2]
-    pop eax
-    mov [x], eax
-    push dword [y]
-    pop eax
-    dec eax
-    mov [y], eax
-    mov [t3], eax
-    push dword [t3]
-    pop eax
-    mov [y], eax
-    push dword [z]
-    push dword [x]
-    pop ebx
-    pop eax
-    cmp eax, ebx
-    sete al
-    movzx eax, al
-    push eax
-    pop eax
-    cmp eax, 0
-    je startElse_1
-    mov byte [s1 + 0], 105
-    mov byte [s1 + 1], 103
-    mov byte [s1 + 2], 117
-    mov byte [s1 + 3], 97
-    mov byte [s1 + 4], 108
-    mov byte [s1 + 5], 101
-    mov byte [s1 + 6], 115
-    mov byte [s1 + 7], 0
-    jmp endif_0
-startElse_1:
-    mov byte [s1 + 0], 100
-    mov byte [s1 + 1], 105
-    mov byte [s1 + 2], 115
-    mov byte [s1 + 3], 116
-    mov byte [s1 + 4], 105
-    mov byte [s1 + 5], 110
-    mov byte [s1 + 6], 116
-    mov byte [s1 + 7], 111
-    mov byte [s1 + 8], 115
-    mov byte [s1 + 9], 0
-endif_0:
+    PutLInt [t1]
+    nwln
+    PutCh [c]
+    nwln
+    mov al, 'Z'
+    PutCh al
+    nwln
+    PutStr s1
+    nwln
+    mov byte [t2 + 0], 32
+    mov byte [t2 + 1], 109
+    mov byte [t2 + 2], 117
+    mov byte [t2 + 3], 110
+    mov byte [t2 + 4], 100
+    mov byte [t2 + 5], 111
+    mov byte [t2 + 6], 0
+    PutStr t2
+    nwln
+    PutStr s2
+    nwln
 done:
     .EXIT

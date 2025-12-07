@@ -1,26 +1,23 @@
-PROGRAM PruebaTodo
+PROGRAM TestWrite
 VAR
   s1, s2: STRING;
   x, y, z: INT;
+  c: CHAR;
 BEGIN
   s1 := "hola";
   s2 := s1;
 
-  x := 5;
+  x := 10;
   y := 3;
+  z := x + y;
+  c := 'A';
 
-  z := x + y;      
-  z := z - 2;      
-
-  x := x++;     
-  y := y--;      
-
-  IF z = x THEN
-    BEGIN
-      s1 := "iguales";
-    END
-  ELSE
-    BEGIN
-      s1 := "distintos";
-    END
+  WRITE(x);
+  WRITE(42);
+  WRITE(z + 1);
+  WRITE(c);
+  WRITE('Z');
+  WRITE(s1);
+  WRITE(" mundo");
+  WRITE(s2);
 END
