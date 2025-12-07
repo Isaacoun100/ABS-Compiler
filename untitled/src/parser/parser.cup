@@ -229,28 +229,31 @@ type_spec ::= TINT | TREAL | TSTRING | TCHAR ;
 
 return_stmt ::= ID ASSIGN expr SEMI ;
 
-func_block ::= decls_opt BEGIN stmt_list return_stmt END ;
-proc_block ::= decls_opt BEGIN stmt_list END ;
+func_block ::= decls_opt BEGIN return_stmt END
+             | decls_opt BEGIN stmt_list return_stmt END ;
+
+proc_block ::= decls_opt BEGIN END
+             | decls_opt BEGIN stmt_list END ;
 
 funcs_opt ::= func_list | /* vacío */ ;
 
 func_list ::= func_list func | func_list proc | func | proc ;
 
 func ::=
-    FUNCTION ID LPAREN param_secs RPAREN COLON type_spec SEMI func_block
+    FUNCTION ID LPAREN param_secs RPAREN COLON type_spec func_block
   | FUNCTION error:e SEMI func_block
       {: parser.addError("Línea " + eleft + ": Error en declaración de función"); :}
   ;
 
 proc ::=
-    PROCEDURE ID LPAREN param_secs RPAREN SEMI proc_block
+    PROCEDURE ID LPAREN param_secs RPAREN proc_block
   | PROCEDURE error:e SEMI proc_block
       {: parser.addError("Línea " + eleft + ": Error en declaración de procedimiento"); :}
   ;
 
-param_secs ::= param_secs SEMI param_sec | param_sec | /* vacío */ ;
+param_secs ::= param_secs COMMA param_sec | param_sec | /* vacío */ ;
 
-param_sec  ::= id_list COLON type_spec ;
+param_sec ::= type_spec ID ;
 
 block ::=
     BEGIN stmt_list END
