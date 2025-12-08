@@ -1,18 +1,11 @@
-PROGRAM DemoErrores
+PROGRAM ConstFoldTest
 VAR
-  a, a: INT;        
-  b: INT;
-  msg: STRING;
-
+  x: INT;
 BEGIN
-  b := 5;
-  c := 3;           
-
-  msg := 10;        
-  a  := "hola";     
-
-  IF a = msg THEN   
+  x := 2 + 3;
+  x := 10 - 4;
+  IF 1 = 0 THEN
   BEGIN
-    a := 1;
+    x := 999;
   END
 END
