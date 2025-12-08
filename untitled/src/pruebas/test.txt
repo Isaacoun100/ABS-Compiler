@@ -1,27 +1,18 @@
-PROGRAM PruebaTS
+PROGRAM DemoErrores
 VAR
-  g, h: INT;
-  s: STRING;
-  c: CHAR;
-
-FUNCTION Suma(INT a, INT b): INT
-  VAR
-    tmp: INT;
-  BEGIN
-    tmp := a + b;
-    Suma := tmp;
-  END
-
-PROCEDURE Mostrar(INT x, CHAR ch)
-  VAR
-    local: INT;
-  BEGIN
-    local := x;
-  END
+  a, a: INT;        
+  b: INT;
+  msg: STRING;
 
 BEGIN
-  g := 10;
-  h := 20;
-  s := "hola";
-  c := 'A';
+  b := 5;
+  c := 3;           
+
+  msg := 10;        
+  a  := "hola";     
+
+  IF a = msg THEN   
+  BEGIN
+    a := 1;
+  END
 END

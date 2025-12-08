@@ -790,8 +790,7 @@ public class Parser extends java_cup.runtime.lr_parser {
             if (e.clase == EntradaTS.Clase.VARIABLE
                     && e.nombre.equals(nombre)
                     && e.bloque.equals(bloque)) {
-                // Ya existe esa variable en ese mismo bloque.
-                // Por ahora NO agregamos otra entrada ni reportamos error semántico.
+                addSemanticError("Identificador ya declarado: " + nombre);
                 return;
             }
         }
@@ -802,7 +801,7 @@ public class Parser extends java_cup.runtime.lr_parser {
                         && !e.esLocal
                         && "GLOBAL".equals(e.bloque)
                         && e.nombre.equals(nombre)) {
-                    // Variable local con mismo nombre que global -> lo ignoramos
+                    addSemanticError("Identificador ya declarado: " + nombre);
                     return;
                 }
             }
@@ -826,7 +825,7 @@ public class Parser extends java_cup.runtime.lr_parser {
                                 boolean esProcedimiento) {
 
         if (buscarTS(nombre) != null) {
-            addError("Identificador ya declarado: " + nombre);
+            addSemanticError("Identificador ya declarado: " + nombre);
             return;
         }
 
@@ -975,6 +974,14 @@ public class Parser extends java_cup.runtime.lr_parser {
         if (!semErrors.contains(error)) {
             semErrors.add(error);
         }
+    }
+
+    // --- registrar errores semánticos CON línea ---
+    public void addSemanticError(String msg, int line) {
+        String full = (line >= 0)
+            ? ("Línea " + line + ": " + msg)
+            : msg;
+        addSemanticError(full);
     }
 
     public boolean enMain() {
@@ -1645,50 +1652,113 @@ class CUP$Parser$actions {
 		int eright = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-1)).right;
 		Object e = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.elementAt(CUP$Parser$top-1)).value;
 		
-      
-        String dest = id.toString();
-        Parser.DO valor = (Parser.DO) e;
-        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        String dest     = id.toString();
+          Parser.DO valor = (Parser.DO) e;
+          String tipoExpr = valor.tipo;
 
-        // Estamos dentro del main (bloque global)
-        if (parser.enMain()) {
+          // Solo generamos ASM en el main, pero la semántica la podemos
+          // hacer igual aquí (todas tus pruebas están en main de todos modos)
+          if (parser.enMain()) {
+              codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
 
-            // Buscar si existe en la TS
-            EntradaTS entVar = parser.buscarVariableVisible(dest);
-            String tipoDest;
+              // Buscar en la TS
+              EntradaTS entVar = parser.buscarVariableVisible(dest);
 
-            if (entVar == null) {
-                // Si no existe, la creamos como global INT (o el tipo que quieras por defecto)
-                tipoDest = "INT";
-                parser.agregarVariableTS(
-                    dest,
-                    tipoDest,
-                    false,   // GLOBAL
-                    false
-                );
-                CodeGenerator.getInstance().declararGlobal(dest, tipoDest);
-            } else {
-                tipoDest = entVar.tipo;
-            }
+              if (entVar == null) {
+                  // variable no declarada
+                  parser.addSemanticError("Línea " + idleft +
+                                          ": Variable no declarada: " + dest);
+              } else if (entVar.clase != EntradaTS.Clase.VARIABLE) {
+                  // por si algún día alguien hace Suma := 3;
+                  parser.addSemanticError("Línea " + idleft +
+                                          ": No se puede asignar a " + dest +
+                                          " porque no es una variable");
+              } else {
+                  // aquí entVar NUNCA es null
+                  String tipoDest = entVar.tipo;
 
-            // Generación de código SIN validaciones de tipos
-            if ("STRING".equals(tipoDest)) {
-                if (valor.clase == Parser.DO.Clase.CONST) {
-                    cg.emitCopyStringLiteral(dest, valor.valorConst);
-                } else {
-                    cg.emitCopyStringVar(dest, valor.nombre);
-                }
-            } else {
-                cg.emitLoad(valor);
-                cg.emit("    pop eax\n");
-                if ("CHAR".equals(tipoDest)) {
-                    cg.emit("    mov [" + dest + "], al\n");
-                } else {
-                    cg.emit("    mov [" + dest + "], eax\n");
-                }
-            }
-        }
-        // Si NO estamos en main no generamos nada de ASM.
+                  // Chequeo sencillo de tipos
+                  if (!tipoDest.equals(tipoExpr)) {
+                      parser.addSemanticError(
+                          "No se puede asignar " + tipoExpr +
+                          " a variable " + tipoDest + " " + dest,
+                          idleft
+                      );
+                  }
+
+                  // --- Generación de código ---
+                  if ("STRING".equals(tipoDest)) {
+                      if (valor.clase == Parser.DO.Clase.CONST) {
+                          cg.emitCopyStringLiteral(dest, valor.valorConst);
+                      } else {
+                          cg.emitCopyStringVar(dest, valor.nombre);
+                      }
+                  } else {
+                      cg.emitLoad(valor);
+                      cg.emit("    pop eax\n");
+                      if ("CHAR".equals(tipoDest)) {
+                          cg.emit("    mov [" + dest + "], al\n");
+                      } else {
+                          cg.emit("    mov [" + dest + "], eax\n");
+                      }
+                  }
+              }
+          }
+          // Si NO estamos en main, no generamos ASM (pero ya no truena).
+        // String dest = id.toString();
+        // Parser.DO valor = (Parser.DO) e;
+        // String tipoExpr = valor.tipo;
+        // codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+
+        // // Estamos dentro del main (bloque global)
+        // if (parser.enMain()) {
+
+        //     // Buscar si existe en la TS
+        //     EntradaTS entVar = parser.buscarVariableVisible(dest);
+        //     String tipoDest;
+
+        //     if (entVar == null) {
+        //         // // Si no existe, la creamos como global INT (o el tipo que quieras por defecto)
+        //         // tipoDest = "INT";
+        //         // parser.agregarVariableTS(
+        //         //     dest,
+        //         //     tipoDest,
+        //         //     false,   // GLOBAL
+        //         //     false
+        //         // );
+        //         // CodeGenerator.getInstance().declararGlobal(dest, tipoDest);
+        //          parser.addSemanticError("Línea " + idleft + ": Variable no declarada: " + dest);
+        //     } else {
+        //         tipoDest = entVar.tipo;
+        //     }
+        //     String tipoDest = entVar.tipo;
+        //     if (!tipoDest.equals(tipoExpr)) {
+        //           parser.addSemanticError(
+        //               "No se puede asignar " + tipoExpr
+        //               + " a variable " + tipoDest + dest, idleft
+        //           );
+        //         }
+
+        //     // Generación de código SIN validaciones de tipos
+        //     if ("STRING".equals(tipoDest)) {
+               
+        //         if (valor.clase == Parser.DO.Clase.CONST) {
+        //             cg.emitCopyStringLiteral(dest, valor.valorConst);
+        //         } else {
+        //             cg.emitCopyStringVar(dest, valor.nombre);
+        //         }
+        //     } else {
+        //         cg.emitLoad(valor);
+        //         cg.emit("    pop eax\n");
+        //         if ("CHAR".equals(tipoDest)) {
+                    
+        //             cg.emit("    mov [" + dest + "], al\n");
+        //         } else {
+        //             cg.emit("    mov [" + dest + "], eax\n");
+        //         }
+        //     }
+        // }
+        // // Si NO estamos en main no generamos nada de ASM.
 
       
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("stmt",13, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-3)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
@@ -2132,9 +2202,9 @@ class CUP$Parser$actions {
 
           // ANÁLISIS SEMÁNTICO
           if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
-              parser.addError(
+              parser.addSemanticError(
                   "La comparación de igualdad solo se permite entre INT, se usó: "
-                  + a.tipo + " y " + b.tipo
+                  + a.tipo + " y " + b.tipo, e1left
               );
           }
           cg.emitLoad(a);   // push valor de la izquierda
@@ -2275,6 +2345,11 @@ class CUP$Parser$actions {
             Parser.DO a = (Parser.DO) e1;
             Parser.DO b = (Parser.DO) e2;
 
+            if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
+                parser.addSemanticError("Suma solo permitida entre INT, se usó: "
+                                + a.tipo + " + " + b.tipo, e1left);
+            }
+
             if (parser.enMain()) {
                 codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
 
@@ -2314,6 +2389,11 @@ class CUP$Parser$actions {
 		
         Parser.DO a = (Parser.DO) e1;
         Parser.DO b = (Parser.DO) e2;
+        if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
+                parser.addSemanticError("Resta solo permitida entre INT, se usó: "
+                                + a.tipo + " - " + b.tipo, e1left);
+            }
+
 
         if (parser.enMain()) {
             codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
@@ -2503,31 +2583,15 @@ class CUP$Parser$actions {
 		int e1right = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-1)).right;
 		Object e1 = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.elementAt(CUP$Parser$top-1)).value;
 		
-        // codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-        // DO d = (DO) e1;
-
-        // // ANALISIS SEMANTICO
-        // if (!"INT".equals(d.tipo)) {
-        //     parser.addError("INC solo permitido sobre INT, se usó: " + d.tipo);
-        // }
-        // if (d.clase != DO.Clase.ADDR) {
-        //     parser.addError("INC solo permitido sobre direcciones (variables/temporales)");
-        // }
-        // // push en la pila
-        // cg.emitLoad(d);
-        // // incrementar
-        // cg.emit("    pop eax\n");
-        // cg.emit("    inc eax\n");
-        // cg.emit("    mov [" + d.nombre + "], eax\n");
-
-        // // guardar resultado en un temporal
-        // String temp = cg.newTemp();
-        // cg.declararTemporal(temp, "INT");
-        // cg.emit("    mov [" + temp + "], eax\n");
-
-        // RESULT = new DO("INT", DO.OrigenAddr.TEMP, temp);
+        
         Parser.DO d = (Parser.DO) e1;
-
+        // ANALISIS SEMANTICO
+        if (!"INT".equals(d.tipo)) {
+            parser.addSemanticError("INC solo permitido sobre INT, se usó: " + d.tipo, e1left);
+        }
+        if (d.clase != DO.Clase.ADDR) {
+            parser.addSemanticError("INC solo permitido sobre direcciones (variables/temporales)", e1left);
+        }
         if (parser.enMain()) {
             codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
 
@@ -2557,28 +2621,14 @@ class CUP$Parser$actions {
 		int e1right = ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-1)).right;
 		Object e1 = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.elementAt(CUP$Parser$top-1)).value;
 		
-        // codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-        // DO d = (DO) e1;
-        // // ANALISIS SEMANTICO
-        // if (!"INT".equals(d.tipo)) {
-        //     parser.addError("DEC solo permitido sobre INT, se usó: " + d.tipo);
-        // }
-        // if (d.clase != DO.Clase.ADDR) {
-        //     parser.addError("DEC solo permitido sobre direcciones (variables/temporales)");
-        // }
-
-        // cg.emitLoad(d);
-        // cg.emit("    pop eax\n");
-        // cg.emit("    dec eax\n");
-        // cg.emit("    mov [" + d.nombre + "], eax\n");
-
-        // String temp = cg.newTemp();
-        // cg.declararTemporal(temp, "INT");
-        // cg.emit("    mov [" + temp + "], eax\n");
-
-        // RESULT = new DO("INT", DO.OrigenAddr.TEMP, temp);
         Parser.DO d = (Parser.DO) e1;
 
+        if (!"INT".equals(d.tipo)) {
+            parser.addSemanticError("DEC solo permitido sobre INT, se usó: " + d.tipo, e1left);
+        }
+        if (d.clase != DO.Clase.ADDR) {
+            parser.addSemanticError("DEC solo permitido sobre direcciones (variables/temporales)", e1left);
+        }
         if (parser.enMain()) {
             codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
 
