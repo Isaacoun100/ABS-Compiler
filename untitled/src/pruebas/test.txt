@@ -1,11 +1,33 @@
-PROGRAM ConstFoldTest
+PROGRAM prueba
 VAR
-  x: INT;
+  x, y: INT;
+  x: REAL;          
+  s: STRING;
+  s: STRING;        
+  g: INT;
+
+FUNCTION Suma(INT a, INT b): INT
 BEGIN
-  x := 2 + 3;
-  x := 10 - 4;
-  IF 1 = 0 THEN
-  BEGIN
-    x := 999;
-  END
+  Suma := a + b;
+END
+
+PROCEDURE Mostrar(INT n)
+BEGIN
+  WRITE(n);
+END
+
+BEGIN
+  x := 10;
+  z := 5;               
+  x := w + 1;           
+  g := NoExiste(1, 2);  
+
+  x := Suma(1, 2);      
+  x := Suma(1);         
+  x := Suma(1, 2, 3);   
+  x := Suma(1, "hola"); 
+
+  Mostrar(10);          
+  Mostrar();            
+  Mostrar("texto");     
 END

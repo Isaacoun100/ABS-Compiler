@@ -576,6 +576,8 @@ public class Parser extends java_cup.runtime.lr_parser {
 
 
 
+    public static final String BLOQUE_UNDECLARED = "<UNDECLARED>";
+    
     public Parser(java_cup.runtime.Scanner s) {
         super(s);
         // Limpiar cualquier cosa por si este parser se reutiliza
@@ -622,8 +624,7 @@ public class Parser extends java_cup.runtime.lr_parser {
       public final boolean esLocal;
       public final String bloque;
       public final boolean esParametro;
-
-
+      
       /** Solo se usa si clase == FUNCION o PROCEDIMIENTO. */
       public final java.util.List<Parametro> parametros;
 
@@ -710,8 +711,11 @@ public class Parser extends java_cup.runtime.lr_parser {
             }
         }
 
-        // Si quisieras, aquí podrías validar:
-        // - si se usa en expresión, debería ser FUNCION, etc.
+        for (int i = args.size()-1; i >= 0; i--) {
+            semPopDO("CALL-arg");
+        }
+        
+        
     }
 
     public String bloqueActual = "GLOBAL";
@@ -802,100 +806,74 @@ public class Parser extends java_cup.runtime.lr_parser {
         return buscarVariableGlobal(nombre);
     }
 
-    // public void agregarVariableTS(String nombre,
-    //                             String tipo,
-    //                             boolean esLocal,
-    //                             boolean esParametro) {
-
-    //     String bloque = esLocal ? bloqueActual : "GLOBAL";
-
-    //     // 1) ¿ya existe variable en este bloque?
-    //     if (buscarVariableEnBloque(nombre, bloque) != null) {
-    //         addSemanticError(
-    //             "Identificador ya declarado en el bloque " + bloque + ": " + nombre
-    //         );
-    //         return;
-    //     }
-
-    //     // 2) si es local, NO puede llamarse igual que una global
-    //     if (esLocal && buscarVariableGlobal(nombre) != null) {
-    //         addSemanticError(
-    //             "Variable local '" + nombre +
-    //             "' no puede llamarse igual que una variable global"
-    //         );
-    //         return;
-    //     }
-
-    //     // 3) registrar en la TS
-    //     tablaSimbolos.add(
-    //         new EntradaTS(
-    //             nombre,
-    //             EntradaTS.Clase.VARIABLE,
-    //             tipo,
-    //             esLocal,
-    //             bloque,
-    //             esParametro,
-    //             null
-    //         )
-    //     );
-    // }
-        public void agregarVariableTS(String nombre,
+    public void agregarVariableTS(String nombre,
                                 String tipo,
                                 boolean esLocal,
                                 boolean esParametro) {
 
-        String bloque = esLocal ? bloqueActual : "GLOBAL";
+            String bloque = esLocal ? bloqueActual : "GLOBAL";
 
-        // --- Chequeo fuerte de duplicado: misma variable en el mismo bloque --- 
-        for (EntradaTS e : tablaSimbolos) {
-            if (e.clase == EntradaTS.Clase.VARIABLE
-                    && e.nombre.equals(nombre)
-                    && e.bloque.equals(bloque)) {
-                addSemanticError(
-                "Identificador '" + nombre + "' ya declarado en el bloque " + bloque,
-                lastIdLine
-            );
-                return;
-            }
-        }
-
-        if (esLocal) {
+            // --- Chequeo fuerte de duplicado: misma variable en el mismo bloque --- 
             for (EntradaTS e : tablaSimbolos) {
                 if (e.clase == EntradaTS.Clase.VARIABLE
-                        && !e.esLocal
-                        && "GLOBAL".equals(e.bloque)
-                        && e.nombre.equals(nombre)) {
+                        && e.nombre.equals(nombre)
+                        && e.bloque.equals(bloque)) {
                     addSemanticError(
-                    "Identificador local '" + nombre + "' ya existe como variable global",
+                    "Identificador '" + nombre + "' ya declarado en el bloque " + bloque,
                     lastIdLine
                 );
                     return;
                 }
             }
-        }
-        // --- Registrar en la TS ---
-        tablaSimbolos.add(
-            new EntradaTS(
-                nombre,
-                EntradaTS.Clase.VARIABLE,
-                tipo,
-                esLocal,
-                bloque,
-                esParametro,
-                null
-            )
-        );
+
+            if (esLocal) {
+                for (EntradaTS e : tablaSimbolos) {
+                    if (e.clase == EntradaTS.Clase.VARIABLE
+                            && !e.esLocal
+                            && "GLOBAL".equals(e.bloque)
+                            && e.nombre.equals(nombre)) {
+                        addSemanticError(
+                        "Identificador local '" + nombre + "' ya existe como variable global",
+                        lastIdLine
+                    );
+                        return;
+                    }
+                }
+
+                
+            }
+            // --- Registrar en la TS ---
+            tablaSimbolos.add(
+                new EntradaTS(
+                    nombre,
+                    EntradaTS.Clase.VARIABLE,
+                    tipo,
+                    esLocal,
+                    bloque,
+                    esParametro,
+                    null
+                )
+            );
+
+                // ====== MARCAR EN LA PILA SEMÁNTICA ======
+            String desc = "DECL_VAR(" + nombre +
+                        ", tipo=" + tipo +
+                        ", bloque=" + bloque +
+                        (esLocal ? ", LOCAL" : ", GLOBAL") +
+                        (esParametro ? ", PARAM" : "") +
+                        ")";
+            semPush(desc);   
+            semPop(); 
     }
-    //Agregar una funcion o procedimiento
     public void agregarFuncionTS(String nombre,
                                 String tipoRetorno,
                                 boolean esProcedimiento) {
 
         if (buscarTS(nombre) != null) {
             addSemanticError(
-            "Identificador de función/procedimiento '" + nombre + "' ya declarado",
-            lastIdLine
-        );
+                "Identificador de función/procedimiento '" + nombre + "' ya declarado",
+                lastIdLine
+            );
             return;
         }
 
@@ -903,6 +881,10 @@ public class Parser extends java_cup.runtime.lr_parser {
             ? EntradaTS.Clase.PROCEDIMIENTO
             : EntradaTS.Clase.FUNCION;
 
+        // Cantidad de parámetros ANTES de limpiar tmpParams
+        int cantParams = (tmpParams == null) ? 0 : tmpParams.size();
+
+        // 1) Agregar a la tabla de símbolos
         tablaSimbolos.add(
             new EntradaTS(
                 nombre,
@@ -911,13 +893,23 @@ public class Parser extends java_cup.runtime.lr_parser {
                 false,          // esLocal (para funciones/procs no aplica)
                 "GLOBAL",       // las funciones/procs viven a nivel global
                 false,          // no es parámetro
-                tmpParams       // lista de parámetros
+                tmpParams       // lista de parámetros (el ctor hace copia)
             )
         );
 
-        // lista de parámetros lista para la siguiente función/proc
+        // 2) Registrar en la pila semántica que se declaró una función/proc
+        String etiqueta = esProcedimiento ? "DECL_PROC" : "DECL_FUNC";
+        String desc = etiqueta + "(" + nombre +
+                    ", retorno=" + tipoRetorno +
+                    ", params=" + cantParams +
+                    ")";
+        semPush(desc);
+        semPop();  // como acordamos: se "usa" para la TS y se saca
+
+        // 3) Dejar lista la lista de parámetros para la siguiente función/proc
         tmpParams.clear();
     }
+
 
     // DATA OBJECT
     //Lo agregue para ordenar y facilitar varias cosas de analisis semantico y generacion de codigo
@@ -1055,8 +1047,8 @@ public class Parser extends java_cup.runtime.lr_parser {
     }
 
     public boolean enMain() {
-    return "GLOBAL".equals(bloqueActual);
-}
+        return "GLOBAL".equals(bloqueActual);
+    }
     public java.util.Stack<String> pilaSemantica = new java.util.Stack<>();
     public java.util.List<String> historialPilaSemantica = new java.util.ArrayList<>();
 
@@ -1128,6 +1120,41 @@ public class Parser extends java_cup.runtime.lr_parser {
             }
         }
         System.out.println("========================================");
+    }
+
+    public void registrarUsoVariableNoDeclarada(String nombre, int line) {
+        // Si ya la habíamos agregado como no declarada, no repetimos error
+        for (EntradaTS e : tablaSimbolos) {
+            if (e.clase == EntradaTS.Clase.VARIABLE &&
+                e.nombre.equals(nombre) &&
+                BLOQUE_UNDECLARED.equals(e.bloque)) {
+                return; // ya está registrada y ya se reportó el error
+            }
+        }
+
+        // 1) Error semántico
+        addSemanticError("Línea " + line + ": Variable no declarada: " + nombre);
+
+        // 2) Agregar una entrada "fantasma" en la TS
+        tablaSimbolos.add(
+            new EntradaTS(
+                nombre,
+                EntradaTS.Clase.VARIABLE,
+                "ERROR",          // o "DESCONOCIDO"
+                false,            // esLocal
+                BLOQUE_UNDECLARED,
+                false,            // esParametro
+                null              // sin parámetros
+            )
+        );
+    }
+
+    public void limpiarPilaSemanticaAlFinal() {
+        while (!pilaSemantica.isEmpty()) {
+            String top = pilaSemantica.pop();
+            historialPilaSemantica.add("FLUSH -> " + top +
+                                    " | pila=" + pilaSemantica.toString());
+        }
     }
 
 
@@ -1813,8 +1840,9 @@ class CUP$Parser$actions {
 
               if (entVar == null) {
                   // variable no declarada
-                  parser.addSemanticError("Línea " + idleft +
-                                          ": Variable no declarada: " + dest);
+                //   parser.addSemanticError("Línea " + idleft +
+                //                           ": Variable no declarada: " + dest);
+                parser.registrarUsoVariableNoDeclarada(dest, idleft);
               } else if (entVar.clase != EntradaTS.Clase.VARIABLE) {
                   // por si algún día alguien hace Suma := 3;
                   parser.addSemanticError("Línea " + idleft +
@@ -2302,6 +2330,7 @@ class CUP$Parser$actions {
               codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
               Parser.DO d = (Parser.DO) e;
               cg.emitWrite(d);
+              parser.semPopDO("WRITE-arg");
           }
       
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("write_args",21, ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
@@ -2376,7 +2405,7 @@ class CUP$Parser$actions {
                 );
             }
         } else {
-            // Caso general (como lo tenías)
+            // Caso general
             cg.emitLoad(a);
             cg.emitLoad(b);
             cg.emit(
@@ -2547,10 +2576,10 @@ class CUP$Parser$actions {
                 int vb = Integer.parseInt(b.valorConst);
                 int vr = va + vb;
 
-                // devolvemos un DO constante, NO generamos ASM
+                // devolvemos un DO constante
                 res = new DO("INT", String.valueOf(vr));
             } catch (NumberFormatException ex) {
-                // si algo raro pasa con el texto, caemos al caso general
+                //  caso general
                 if (parser.enMain()) {
                     codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
                     String temp = cg.newTemp();
@@ -2808,7 +2837,8 @@ class CUP$Parser$actions {
         String tipo;
 
         if (ent == null) {
-            parser.addSemanticError("Línea " + idleft + ": Variable no declarada: " + name);
+            //parser.addSemanticError("Línea " + idleft + ": Variable no declarada: " + name);
+            parser.registrarUsoVariableNoDeclarada(name, idleft);
             tipo = "INT"; // valor por defecto para no romper más cosas
         } else {
             tipo = ent.tipo;

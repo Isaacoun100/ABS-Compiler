@@ -39,8 +39,6 @@ public class CodeGenerator {
     // guardamos las variables globales en la lista cuando las encontremos en el VAR
     public void declararGlobal(String nombre, String tipo) {
         if (globalVars.containsKey(nombre)) {
-            // ANALISIS SEMANTICO
-            System.err.println("Advertencia: variable global repetida: " + nombre);
             return;
         }
         globalVars.put(nombre, tipo);

@@ -38,6 +38,7 @@ public class Main {
                     printErrors(lexErrors, synErrors, semErrors);
                 }
                 parser.imprimirTablaSimbolos();
+                parser.limpiarPilaSemanticaAlFinal();
                 parser.imprimirPilaSemantica();
             } catch (Exception e) {
                 handleParseException(parser, e);
@@ -70,19 +71,19 @@ public class Main {
     }
 
     private static void printSuccess(Object result) {
-        System.out.println("✓ Análisis completado sin errores");
+        System.out.println("✓ Analisis completado sin errores");
         System.out.println("✓ AST/resultado: " + result);
     }
 
     private static void printErrors(ArrayList<String> lexErrors, ArrayList<String> synErrors, ArrayList<String> semErrors) {
         
         if (!lexErrors.isEmpty()) {
-            System.out.println("\n========== ERRORES LÉXICOS (" + lexErrors.size() + ") ==========");
+            System.out.println("\n========== ERRORES LEXICOS (" + lexErrors.size() + ") ==========");
             lexErrors.forEach(error -> System.out.println("  ✗ " + error));
         }
 
         if (!synErrors.isEmpty()) {
-            System.out.println("\n========== ERRORES SINTÁCTICOS (" + synErrors.size() + ") ==========");
+            System.out.println("\n========== ERRORES SINTACTICOS (" + synErrors.size() + ") ==========");
             synErrors.forEach(error -> System.out.println("  ✗ " + error));
         }
         if (!semErrors.isEmpty()) {
