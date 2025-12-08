@@ -10,9 +10,10 @@ public class Main {
 
     public static void main(String[] args) {
         // Determine input file: use command line arg if provided, otherwise default
+        String nombreArchivo = "test.txt";
         Path path = (args.length > 0)
                 ? Paths.get(args[0])
-                : Paths.get("untitled/src/pruebas/test.txt");
+                : Paths.get("untitled/src/pruebas/" + nombreArchivo);
 
         path = path.toAbsolutePath().normalize();
         System.out.println("Ejecutando: " + path);
@@ -32,11 +33,12 @@ public class Main {
                 ArrayList<String> semErrors = parser.semErrors;
                 
                 if (lexErrors.isEmpty() && synErrors.isEmpty() && semErrors.isEmpty() ) {
-                    generateCode(result);
+                    generateCode(result, nombreArchivo);
                 } else {
                     printErrors(lexErrors, synErrors, semErrors);
                 }
                 parser.imprimirTablaSimbolos();
+                parser.imprimirPilaSemantica();
             } catch (Exception e) {
                 handleParseException(parser, e);
             }
@@ -50,7 +52,7 @@ public class Main {
         }
     }
 
-    private static void generateCode(Object result) {
+    private static void generateCode(Object result, String nombre) {
         printSuccess(result);
 
         try {

@@ -987,7 +987,41 @@ public class Parser extends java_cup.runtime.lr_parser {
     public boolean enMain() {
     return "GLOBAL".equals(bloqueActual);
 }
+    public java.util.Stack<String> pilaSemantica = new java.util.Stack<>();
+    public java.util.List<String> historialPilaSemantica = new java.util.ArrayList<>();
 
+    public void semPush(String descripcion) {
+        pilaSemantica.push(descripcion);
+        historialPilaSemantica.add(
+            "PUSH -> " + descripcion + " | pila=" + pilaSemantica.toString()
+        );
+    }
+
+    public String semPop() {
+        if (pilaSemantica.isEmpty()) {
+            historialPilaSemantica.add("POP  -> (pila vacía) | pila=[]");
+            return null;
+        }
+        String top = pilaSemantica.pop();
+        historialPilaSemantica.add(
+            "POP  -> " + top + " | pila=" + pilaSemantica.toString()
+        );
+        return top;
+    }
+
+    public void imprimirPilaSemantica() {
+        System.out.println("========================================");
+        System.out.println("      HISTORIAL PILA SEMÁNTICA");
+        System.out.println("========================================");
+        if (historialPilaSemantica.isEmpty()) {
+            System.out.println("(sin operaciones)");
+        } else {
+            for (String linea : historialPilaSemantica) {
+                System.out.println(linea);
+            }
+        }
+        System.out.println("========================================");
+    }
 
 
 /** Cup generated class to encapsulate user supplied action code.*/
@@ -1904,6 +1938,9 @@ class CUP$Parser$actions {
           // Para IF sin ELSE, simplemente usamos endLabel como fin del IF
           cg.emit(endLabel + ":\n");
 
+          // --- Pila semántica: cerramos el RS_IF ---
+          parser.semPop();
+
       
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("stmt",13, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-3)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
@@ -1940,6 +1977,8 @@ class CUP$Parser$actions {
           String exitLabel = parser.labelStack.pop();
           codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
           cg.emit(exitLabel + ":\n");
+
+          parser.semPop();
       
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("stmt",13, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-6)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
@@ -2326,6 +2365,12 @@ class CUP$Parser$actions {
         //   cg.emit("    je " + elseLabel + "\n");
           int indice = cg.emitAndGetIndex("    je " + elseLabel + "\n");
           parser.indices.push(indice);
+
+          parser.semPush(
+              "RS_IF(exit=" + exitLabel +
+              ", else=" + elseLabel +
+              ", idx=" + indice + ")"
+          );
       
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("if_cond",27, ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }

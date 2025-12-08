@@ -1,17 +1,15 @@
 PROGRAM DemoErrores
 VAR
-  a, a: INT;        
+  a: INT;        
   b: INT;
   msg: STRING;
 
 BEGIN
   b := 5;
-  c := 3;           
+  a := 3;           
+  
 
-  msg := 10;        
-  a  := "hola";     
-
-  IF a = msg THEN   
+  IF a = b THEN   
   BEGIN
     a := 1;
   END

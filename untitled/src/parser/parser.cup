@@ -422,7 +422,41 @@ parser code {:
     public boolean enMain() {
     return "GLOBAL".equals(bloqueActual);
 }
+    public java.util.Stack<String> pilaSemantica = new java.util.Stack<>();
+    public java.util.List<String> historialPilaSemantica = new java.util.ArrayList<>();
 
+    public void semPush(String descripcion) {
+        pilaSemantica.push(descripcion);
+        historialPilaSemantica.add(
+            "PUSH -> " + descripcion + " | pila=" + pilaSemantica.toString()
+        );
+    }
+
+    public String semPop() {
+        if (pilaSemantica.isEmpty()) {
+            historialPilaSemantica.add("POP  -> (pila vacía) | pila=[]");
+            return null;
+        }
+        String top = pilaSemantica.pop();
+        historialPilaSemantica.add(
+            "POP  -> " + top + " | pila=" + pilaSemantica.toString()
+        );
+        return top;
+    }
+
+    public void imprimirPilaSemantica() {
+        System.out.println("========================================");
+        System.out.println("      HISTORIAL PILA SEMÁNTICA");
+        System.out.println("========================================");
+        if (historialPilaSemantica.isEmpty()) {
+            System.out.println("(sin operaciones)");
+        } else {
+            for (String linea : historialPilaSemantica) {
+                System.out.println(linea);
+            }
+        }
+        System.out.println("========================================");
+    }
 :};
 
 // ====================== Terminals ====================== //
@@ -886,6 +920,9 @@ stmt ::=
           // Para IF sin ELSE, simplemente usamos endLabel como fin del IF
           cg.emit(endLabel + ":\n");
 
+          // --- Pila semántica: cerramos el RS_IF ---
+          parser.semPop();
+
       :}
 
  
@@ -908,6 +945,8 @@ stmt ::=
           String exitLabel = parser.labelStack.pop();
           codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
           cg.emit(exitLabel + ":\n");
+
+          parser.semPop();
       :}
 
 
@@ -1047,6 +1086,12 @@ if_cond ::=
         //   cg.emit("    je " + elseLabel + "\n");
           int indice = cg.emitAndGetIndex("    je " + elseLabel + "\n");
           parser.indices.push(indice);
+
+          parser.semPush(
+              "RS_IF(exit=" + exitLabel +
+              ", else=" + elseLabel +
+              ", idx=" + indice + ")"
+          );
       :}
   ;
 //================================================================================================================

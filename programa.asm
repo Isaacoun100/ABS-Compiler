@@ -4,27 +4,33 @@
 
 .UDATA
 
-    g resd 1
-    h resd 1
-    s resb 256
-    c resb 1
+    a resd 1
+    b resd 1
+    msg resb 256
 
 .CODE
 .STARTUP
 main:
-    push 10
+    push 5
     pop eax
-    mov [g], eax
-    push 20
+    mov [b], eax
+    push 3
     pop eax
-    mov [h], eax
-    mov byte [s + 0], 104
-    mov byte [s + 1], 111
-    mov byte [s + 2], 108
-    mov byte [s + 3], 97
-    mov byte [s + 4], 0
-    push 'A'
+    mov [a], eax
+    push dword [a]
+    push dword [b]
+    pop ebx
     pop eax
-    mov [c], al
+    cmp eax, ebx
+    sete al
+    movzx eax, al
+    push eax
+    pop eax
+    cmp eax, 0
+    je endif_0
+    push 1
+    pop eax
+    mov [a], eax
+endif_0:
 done:
     .EXIT
