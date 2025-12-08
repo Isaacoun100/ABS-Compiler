@@ -1,16 +1,9 @@
-PROGRAM DemoErrores
+PROGRAM TestSemantico
 VAR
-  a: INT;        
-  b: INT;
-  msg: STRING;
+  x, y: INT;
+  s: STRING;
+  g: INT;
 
 BEGIN
-  b := 5;
-  a := 3;           
-  
-
-  IF a = b THEN   
-  BEGIN
-    a := 1;
-  END
+  x := 10;
 END

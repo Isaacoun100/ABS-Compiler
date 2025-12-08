@@ -10,10 +10,10 @@ public class Main {
 
     public static void main(String[] args) {
         // Determine input file: use command line arg if provided, otherwise default
-        String nombreArchivo = "test.txt";
+        String nombreArchivo = "test.";
         Path path = (args.length > 0)
                 ? Paths.get(args[0])
-                : Paths.get("untitled/src/pruebas/" + nombreArchivo);
+                : Paths.get("untitled/src/pruebas/" + nombreArchivo + "txt");
 
         path = path.toAbsolutePath().normalize();
         System.out.println("Ejecutando: " + path);
@@ -58,12 +58,12 @@ public class Main {
         try {
             // Pedirle al CodeGenerator el código NASM
             String asm = CodeGenerator.getInstance().buildProgram();
+            Path path = Paths.get("untitled/src/pruebas/" + nombre + "asm");
 
             // Guardarlo en programa.asm en la carpeta del proyecto
-            Path outPath = Paths.get("programa.asm").toAbsolutePath().normalize();
-            Files.writeString(outPath, asm);
+            Files.writeString(path, asm);
 
-            System.out.println("✓ Código NASM generado en: " + outPath);
+            System.out.println("✓ Código NASM generado en: " + path);
         } catch (IOException e) {
             System.err.println("✗ Error escribiendo programa.asm: " + e.getMessage());
         }
