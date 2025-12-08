@@ -45,6 +45,9 @@ parser code {:
 
       /** Solo tiene sentido si clase == VARIABLE. */
       public final boolean esLocal;
+      public final String bloque;
+      public final boolean esParametro;
+
 
       /** Solo se usa si clase == FUNCION o PROCEDIMIENTO. */
       public final java.util.List<Parametro> parametros;
@@ -53,11 +56,15 @@ parser code {:
                         Clase clase,
                         String tipo,
                         boolean esLocal,
+                        String bloque,
+                        boolean esParametro,
                         java.util.List<Parametro> parametros) {
             this.nombre = nombre;
             this.clase = clase;
             this.tipo  = tipo;
             this.esLocal = esLocal;
+            this.bloque = bloque;
+            this.esParametro = esParametro;
 
             if (parametros == null) {
                 this.parametros = java.util.Collections.emptyList();
@@ -71,9 +78,48 @@ parser code {:
         }
     }
 
+
+    public String bloqueActual = "GLOBAL";
+    public java.util.Stack<String> pilaBloques = new java.util.Stack<>();
+
     // TABLA DE SIMBOLOS 
     public java.util.List<EntradaTS> tablaSimbolos = new java.util.ArrayList<>();
     
+    public void imprimirTablaSimbolos() {
+        System.out.println("========================================");
+        System.out.println("           TABLA DE SÍMBOLOS");
+        System.out.println("========================================");
+        if (tablaSimbolos.isEmpty()) {
+            System.out.println("(vacía)");
+            System.out.println("========================================");
+            return;
+        }
+
+        for (EntradaTS e : tablaSimbolos) {
+            System.out.println("Nombre : " + e.nombre);
+            System.out.println("Clase  : " + e.clase);
+            System.out.println("Tipo   : " + e.tipo);
+
+            if (e.clase == EntradaTS.Clase.VARIABLE) {
+                System.out.println("Alcance : " + (e.esLocal ? "LOCAL" : "GLOBAL"));
+            }
+
+            if (e.clase == EntradaTS.Clase.FUNCION || e.clase == EntradaTS.Clase.PROCEDIMIENTO) {
+                System.out.println("Params : " + e.cantidadParametros());
+                for (Parametro p : e.parametros) {
+                    System.out.println("   #" + p.posicion +
+                                       "  nombre=" + p.nombre +
+                                       ", tipo=" + p.tipo);
+                }
+            }
+
+            System.out.println("----------------------------------------");
+        }
+
+        System.out.println("========================================");
+    }
+
+
     // Lista temporal para ir revisando los parametros
     public java.util.List<Parametro> tmpParams = new java.util.ArrayList<>();
 
@@ -89,25 +135,73 @@ parser code {:
         return null;
     }
 
-    //Agregar una variable (global o local)
+    public EntradaTS buscarVariableEnBloque(String nombre, String bloque) {
+        for (EntradaTS e : tablaSimbolos) {
+            if (e.clase == EntradaTS.Clase.VARIABLE &&
+                e.nombre.equals(nombre) &&
+                e.bloque.equals(bloque)) {
+                return e;
+            }
+        }
+        return null;
+    }
+
+    public EntradaTS buscarVariableGlobal(String nombre) {
+        for (EntradaTS e : tablaSimbolos) {
+            if (e.clase == EntradaTS.Clase.VARIABLE &&
+                !e.esLocal && "GLOBAL".equals(e.bloque) &&
+                e.nombre.equals(nombre)) {
+                return e;
+            }
+        }
+        return null;
+    }
+
+    public EntradaTS buscarVariableVisible(String nombre) {
+        // 1) intentar en el bloque actual
+        EntradaTS local = buscarVariableEnBloque(nombre, bloqueActual);
+        if (local != null) return local;
+
+        // 2) si no, en global
+        return buscarVariableGlobal(nombre);
+    }
+
     public void agregarVariableTS(String nombre,
                                 String tipo,
-                                boolean esLocal) {
+                                boolean esLocal,
+                                boolean esParametro) {
 
-      if (buscarTS(nombre) != null) {
-        //   addError("Identificador ya declarado: " + nombre); ANALISIS SEMANTICO
-          return;
-      }
+        String bloque = esLocal ? bloqueActual : "GLOBAL";
 
-      tablaSimbolos.add(
-          new EntradaTS(
-              nombre,
-              EntradaTS.Clase.VARIABLE,
-              tipo,
-              esLocal,
-              null    // sin parámetros
-          )
-      );
+        // 1) ¿ya existe variable en este bloque?
+        if (buscarVariableEnBloque(nombre, bloque) != null) {
+            addSemanticError(
+                "Identificador ya declarado en el bloque " + bloque + ": " + nombre
+            );
+            return;
+        }
+
+        // 2) si es local, NO puede llamarse igual que una global
+        if (esLocal && buscarVariableGlobal(nombre) != null) {
+            addSemanticError(
+                "Variable local '" + nombre +
+                "' no puede llamarse igual que una variable global"
+            );
+            return;
+        }
+
+        // 3) registrar en la TS
+        tablaSimbolos.add(
+            new EntradaTS(
+                nombre,
+                EntradaTS.Clase.VARIABLE,
+                tipo,
+                esLocal,
+                bloque,
+                esParametro,
+                null
+            )
+        );
     }
 
     //Agregar una funcion o procedimiento
@@ -129,8 +223,10 @@ parser code {:
                 nombre,
                 clase,
                 tipoRetorno,
-                false,      // esLocal solo aplica a variables
-                tmpParams   // copia interna en el constructor
+                false,          // esLocal (para funciones/procs no aplica)
+                "GLOBAL",       // las funciones/procs viven a nivel global
+                false,          // no es parámetro
+                tmpParams       // lista de parámetros
             )
         );
 
@@ -195,6 +291,7 @@ parser code {:
 
     // Listado de errores del parser
     public ArrayList<String> synErrors = new ArrayList<>();
+    
     private boolean errorRecovering = false;
   /**
   * Override for the report_error function to provide a better error message
@@ -254,7 +351,15 @@ parser code {:
     }
   }
 
-  
+  // Semanticos
+    public ArrayList<String> semErrors = new ArrayList<>();
+
+     // --- registrar errores semánticos ---
+    public void addSemanticError(String error) {
+        if (!semErrors.contains(error)) {
+            semErrors.add(error);
+        }
+    }
 
 :};
 
@@ -375,11 +480,20 @@ decl_items_tail ::=
 decl_item ::=
     id_list COLON type_spec SEMI
     {:
-        //Generamos el codigo para la declaracion de variables
+        boolean esLocal = !"GLOBAL".equals(parser.bloqueActual);
+
         for (String nombre : parser.tmpIdList) {
+            // Registrar en la tabla de símbolos
+            parser.agregarVariableTS(
+                nombre,
+                parser.tmpType,
+                esLocal,    // true si estamos en función/proc, false si es global
+                false       // no es parámetro
+            );
             CodeGenerator.getInstance().declararGlobal(nombre, parser.tmpType);
         }
-        // Limpiamos la "pila"
+
+        // Limpiamos la lista temporal
         parser.tmpIdList.clear();
         parser.tmpType = null;
     :}
@@ -457,20 +571,61 @@ funcs_opt ::= func_list | /* vacío */ ;
 func_list ::= func_list func | func_list proc | func | proc ;
 
 func ::=
-    FUNCTION ID LPAREN param_secs RPAREN COLON type_spec func_block
+    FUNCTION ID:id LPAREN param_secs RPAREN COLON type_spec 
+        {:
+            parser.pilaBloques.push(parser.bloqueActual);
+            String nombreFun = id.toString();
+            parser.bloqueActual = nombreFun;
+            String tipoRet = parser.tmpType;   // viene del type_spec del header
+
+            // tmpParams ya tiene los parámetros en orden
+            parser.agregarFuncionTS(nombreFun, tipoRet, false);
+        :}
+    func_block
+    {:
+          parser.bloqueActual = parser.pilaBloques.pop();
+    :}
   | FUNCTION error:e SEMI func_block
       {: parser.addError("Línea " + eleft + ": Error en declaración de función"); :}
   ;
 
 proc ::=
-    PROCEDURE ID LPAREN param_secs RPAREN proc_block
+    PROCEDURE ID:id LPAREN param_secs RPAREN 
+        {:
+            parser.pilaBloques.push(parser.bloqueActual);
+            String nombreProc = id.toString();
+            parser.bloqueActual = nombreProc;
+            parser.agregarFuncionTS(nombreProc, "VOID", true);
+        :}
+    proc_block
+        {:
+            parser.bloqueActual = parser.pilaBloques.pop();
+        :}
   | PROCEDURE error:e SEMI proc_block
       {: parser.addError("Línea " + eleft + ": Error en declaración de procedimiento"); :}
   ;
 
 param_secs ::= param_secs COMMA param_sec | param_sec | /* vacío */ ;
 
-param_sec ::= type_spec ID ;
+param_sec ::= type_spec ID:id 
+    {:
+        String tipoParam   = parser.tmpType;
+        String nombreParam = id.toString();
+        int pos            = parser.tmpParams.size();
+
+        // 1) lista de parámetros de la función/proc
+        parser.tmpParams.add(new Parametro(nombreParam, tipoParam, pos));
+
+        // 2) también es VARIABLE LOCAL en la TS, del bloque actual
+        parser.agregarVariableTS(
+            nombreParam,
+            tipoParam,
+            true,   // esLocal
+            true    // esParametro
+        );
+    :}
+
+;
 
 block ::=
     BEGIN stmt_list END
@@ -851,17 +1006,18 @@ expr ::=
   | ID:id
       {:
         String name = id.toString();
-        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-        String tipo = cg.getGlobalType(name);
+        EntradaTS ent = parser.buscarVariableVisible(name);
+        String tipo;
 
-        // ANALISIS SEMANTICO
-        if (tipo == null) {
-            parser.addError("Variable no declarada: " + name);
-            tipo = "INT"; // para no romper el resto
+        if (ent == null) {
+            parser.addSemanticError("Línea " + idleft + ": Variable no declarada: " + name);
+            tipo = "INT"; // valor por defecto para no romper más cosas
+        } else {
+            tipo = ent.tipo;
         }
 
-        RESULT = new DO(tipo, DO.OrigenAddr.VAR, name); 
-      :}
+        RESULT = new DO(tipo, DO.OrigenAddr.VAR, name);
+    :}
   | LPAREN expr RPAREN
   | ID LPAREN args_opt RPAREN
   | expr:e1 INC

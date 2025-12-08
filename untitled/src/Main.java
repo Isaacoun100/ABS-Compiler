@@ -29,13 +29,13 @@ public class Main {
                 // Collect any errors that occurred during lexical and syntactic analysis
                 ArrayList<String> lexErrors = lexer.lexErrors;
                 ArrayList<String> synErrors = parser.synErrors;
-
+                
                 if (lexErrors.isEmpty() && synErrors.isEmpty()) {
                     generateCode(result);
                 } else {
                     printErrors(lexErrors, synErrors);
                 }
-
+                parser.imprimirTablaSimbolos();
             } catch (Exception e) {
                 handleParseException(parser, e);
             }

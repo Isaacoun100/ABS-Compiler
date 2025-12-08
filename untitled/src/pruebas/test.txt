@@ -1,23 +1,27 @@
-PROGRAM TestWrite
+PROGRAM PruebaTS
 VAR
-  s1, s2: STRING;
-  x, y, z: INT;
+  g, h: INT;
+  s: STRING;
   c: CHAR;
+
+FUNCTION Suma(INT x, INT b): INT
+  VAR
+    tmp: INT;
+  BEGIN
+    tmp := a + b;
+    Suma := tmp;
+  END
+
+PROCEDURE Mostrar(INT x, CHAR ch)
+  VAR
+    local: INT;
+  BEGIN
+    local := x;
+  END
+
 BEGIN
-  s1 := "hola";
-  s2 := s1;
-
-  x := 10;
-  y := 3;
-  z := x + y;
+  g := 10;
+  h := 20;
+  s := "hola";
   c := 'A';
-
-  WRITE(x);
-  WRITE(42);
-  WRITE(z + 1);
-  WRITE(c);
-  WRITE('Z');
-  WRITE(s1);
-  WRITE(" mundo");
-  WRITE(s2);
 END
