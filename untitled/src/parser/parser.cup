@@ -374,22 +374,6 @@ parser code {:
     // addError("Línea " + s.left + ": Error de sintaxis");
   }
 
-
-  /**
-  * Override for unrecovered_syntax_error, which again shouldn't be triggered considering
-  * that the scanning process happened before this, but in some instances it was
-  * triggered so we are just being cautious just in case we find one
-  * @param cur_token
-  */
-  @Override
-  public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
-    // Error fatal: no se pudo recuperar
-    Symbol s = cur_token;
-    addError("Línea " + s.left + ": Error fatal de sintaxis");
-    // No lanzar excepción, solo reportar
-    done_parsing();
-  }
-
   /**
   * When a semantic error is found we will invoke the addError function to add it to the
   * list of semantic errors that we will display at the end of the compilation
@@ -521,15 +505,17 @@ decls_opt ::= var_sections | /* vacío */ ;
 
 var_sections ::=
     VAR decl_items var_sections_tail
-  | VAR error:e SEMI var_sections_tail
-      {: parser.addError("Línea " + eleft + ": Error en declaración de variable"); :}
+  | VAR SEMI var_sections_tail
+  | VAR error SEMI var_sections_tail
+      {: parser.addError("Error en declaración de variable"); :}
   ;
 
 
 var_sections_tail ::=
     VAR decl_items var_sections_tail
-  | VAR error:e SEMI var_sections_tail
-      {: parser.addError("Línea " + eleft + ": Error en declaración de variable"); :}
+  | VAR SEMI var_sections_tail
+  | VAR error SEMI var_sections_tail
+      {: parser.addError("Error en declaración de variable"); :}
   | /* vacío */ ;
 
 
@@ -653,8 +639,14 @@ func ::=
     {:
           parser.bloqueActual = parser.pilaBloques.pop();
     :}
-  | FUNCTION error:e SEMI func_block
-      {: parser.addError("Línea " + eleft + ": Error en declaración de función"); :}
+  | FUNCTION ID LPAREN error RPAREN COLON type_spec func_block
+      {: parser.addError("Línea " + ((Symbol)CUP$parser$stack.peek()).left + ": Error en parámetros de función"); :}
+  | FUNCTION ID error func_block
+      {: parser.addError("Error en declaración de función"); :}
+  | FUNCTION ID LPAREN param_secs RPAREN func_block
+      {: parser.addError("Error: función sin tipo de retorno"); :}
+  | FUNCTION ID LPAREN param_secs error func_block
+      {: parser.addError("Error en declaración de función"); :}
   ;
 
 proc ::=
@@ -674,8 +666,10 @@ proc ::=
      {:
           parser.bloqueActual = parser.pilaBloques.pop();
     :}
-  | PROCEDURE error:e SEMI proc_block
-      {: parser.addError("Línea " + eleft + ": Error en declaración de procedimiento"); :}
+  | PROCEDURE ID LPAREN error RPAREN proc_block
+      {: parser.addError("Línea " + ((Symbol)CUP$parser$stack.peek()).left + ": Error en parámetros de procedimiento"); :}
+  | PROCEDURE ID error proc_block
+      {: parser.addError("Error en declaración de procedimiento"); :}
   ;
 
 param_secs ::= param_secs COMMA param_sec | param_sec | /* vacío */ ;
