@@ -210,7 +210,7 @@ parser code {:
                                 boolean esProcedimiento) {
 
         if (buscarTS(nombre) != null) {
-            addError("Identificador ya declarado: " + nombre);
+            addSemanticError("Identificador ya declarado: " + nombre);
             return;
         }
 
@@ -354,11 +354,19 @@ parser code {:
   // Semanticos
     public ArrayList<String> semErrors = new ArrayList<>();
 
-     // --- registrar errores semánticos ---
+      // --- registrar errores semánticos (sin línea explícita) ---
     public void addSemanticError(String error) {
         if (!semErrors.contains(error)) {
             semErrors.add(error);
         }
+    }
+
+    // --- registrar errores semánticos CON línea ---
+    public void addSemanticError(String msg, int line) {
+        String full = (line >= 0)
+            ? ("Línea " + line + ": " + msg)
+            : msg;
+        addSemanticError(full);
     }
 
 :};
@@ -661,42 +669,51 @@ stmt ::=
       {:
       
       String dest = id.toString();
-      codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-      String tipoDest = cg.getGlobalType(dest);
-
-      DO valor = (DO) e;           
+      Parser.DO valor = (Parser.DO) e;
       String tipoExpr = valor.tipo;
 
-      if (tipoDest == null) {
-          parser.addError("Variable no declarada: " + dest); //ANALISIS SEMANTICO
-      } else if ("STRING".equals(tipoDest)) {
-          // ANALISIS SEMANTICO
-          if (!"STRING".equals(tipoExpr)) {
-              parser.addError("No se puede asignar " + tipoExpr
-                              + " a variable STRING " + dest);
-          } else {
-              if (valor.clase == DO.Clase.CONST) { // si se sta asignando un string directo a la variable
-                  cg.emitCopyStringLiteral(dest, valor.valorConst);
-              } else { // Si se estan asignando a una variable tipo string el contenido de otra tipo string
-                  cg.emitCopyStringVar(dest, valor.nombre);
-              }
-          }
-
+      // 1) Buscar en la tabla de símbolos (local o global)
+      EntradaTS ent = parser.buscarVariableVisible(dest);
+      if (ent == null) {
+          parser.addSemanticError("Línea " + idleft + ": Variable no declarada: " + dest);
+          // No intentamos generar código porque no sabemos el tipo
+      } else if (ent.clase != EntradaTS.Clase.VARIABLE) {
+          parser.addSemanticError("Línea " + idleft + ": no es una variable" + dest);
       } else {
-          // ANALISIS SEMANTICO
-          if ("STRING".equals(tipoExpr)) {
-              parser.addError(
-                  "No se puede asignar STRING a variable "
-                  + tipoDest + " (" + dest + ")"
-              );
-          } else {
-            
-              cg.emitLoad(valor); // Hacer push en la pila
-              cg.emit("    pop eax\n"); // guardarlo en eax
-              if ("CHAR".equals(tipoDest)) {
-                  cg.emit("    mov [" + dest + "], al\n"); //CHAR
+          String tipoDest = ent.tipo;
+
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+
+          if ("STRING".equals(tipoDest)) {
+              // STRING := ...
+              if (!"STRING".equals(tipoExpr)) {
+                  parser.addSemanticError(
+                      "No se puede asignar " + tipoExpr
+                      + " a variable STRING " + dest, idleft
+                  );
               } else {
-                  cg.emit("    mov [" + dest + "], eax\n"); //INT, FLOAT
+                  if (valor.clase == DO.Clase.CONST) {
+                      cg.emitCopyStringLiteral(dest, valor.valorConst);
+                  } else {
+                      cg.emitCopyStringVar(dest, valor.nombre);
+                  }
+              }
+          } else {
+              // INT, REAL, CHAR
+              if ("STRING".equals(tipoExpr)) {
+                  parser.addSemanticError(
+                      "No se puede asignar STRING a variable "
+                      + tipoDest + " (" + dest + ")", idleft
+                  );
+              } else {
+            
+                  cg.emitLoad(valor); // Hacer push en la pila
+                  cg.emit("    pop eax\n"); // guardarlo en eax
+                  if ("CHAR".equals(tipoDest)) {
+                      cg.emit("    mov [" + dest + "], al\n"); //CHAR
+                  } else {
+                      cg.emit("    mov [" + dest + "], eax\n"); //INT, FLOAT
+                  }
               }
           }
       }
@@ -855,10 +872,9 @@ bExpr ::=
 
           // ANÁLISIS SEMÁNTICO
           if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
-              parser.addError(
+              parser.addSemanticError(
                   "La comparación de igualdad solo se permite entre INT, se usó: "
-                  + a.tipo + " y " + b.tipo
-              );
+                  + a.tipo + " y " + b.tipo, e1left              );
           }
           cg.emitLoad(a);   // push valor de la izquierda
           cg.emitLoad(b);   // push valor de la derecha
@@ -929,8 +945,8 @@ expr ::=
 
             // ANALISIS SEMANTICO
             if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
-                parser.addError("Suma solo permitida entre INT, se usó: "
-                                + a.tipo + " + " + b.tipo);
+                parser.addSemanticError("Suma solo permitida entre INT, se usó: "
+                                + a.tipo + " + " + b.tipo, e1left);
             }
 
             //temporal para el resultado
@@ -955,8 +971,8 @@ expr ::=
 
         // ANÁLISIS SEMÁNTICO
         if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
-            parser.addError("Resta solo permitida entre INT, se usó: "
-                            + a.tipo + " - " + b.tipo);
+            parser.addSemanticError("Resta solo permitida entre INT, se usó: "
+                            + a.tipo + " - " + b.tipo, e1left);
         }
 
         // Temporal para el resultado
@@ -1027,10 +1043,10 @@ expr ::=
 
         // ANALISIS SEMANTICO
         if (!"INT".equals(d.tipo)) {
-            parser.addError("INC solo permitido sobre INT, se usó: " + d.tipo);
+            parser.addSemanticError("INC solo permitido sobre INT, se usó: " + d.tipo, e1left);
         }
         if (d.clase != DO.Clase.ADDR) {
-            parser.addError("INC solo permitido sobre direcciones (variables/temporales)");
+            parser.addSemanticError("INC solo permitido sobre direcciones (variables/temporales)", e1left);
         }
         // push en la pila
         cg.emitLoad(d);
@@ -1052,10 +1068,10 @@ expr ::=
         DO d = (DO) e1;
         // ANALISIS SEMANTICO
         if (!"INT".equals(d.tipo)) {
-            parser.addError("DEC solo permitido sobre INT, se usó: " + d.tipo);
+            parser.addSemanticError("DEC solo permitido sobre INT, se usó: " + d.tipo, e1left);
         }
         if (d.clase != DO.Clase.ADDR) {
-            parser.addError("DEC solo permitido sobre direcciones (variables/temporales)");
+            parser.addSemanticError("DEC solo permitido sobre direcciones (variables/temporales)", e1left);
         }
 
         cg.emitLoad(d);
