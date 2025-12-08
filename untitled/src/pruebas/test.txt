@@ -4,7 +4,7 @@ VAR
   s: STRING;
   c: CHAR;
 
-FUNCTION Suma(INT x, INT b): INT
+FUNCTION Suma(INT a, INT b): INT
   VAR
     tmp: INT;
   BEGIN

@@ -11,6 +11,16 @@ import codigo.CodeGenerator;
  * los errores y seguimos la indicación sobre los errores
  */
 parser code {:
+    public Parser(java_cup.runtime.Scanner s) {
+        super(s);
+        // Limpiar cualquier cosa por si este parser se reutiliza
+        tablaSimbolos = new java.util.ArrayList<>();
+        tmpParams     = new java.util.ArrayList<>();
+        tmpIdList     = new java.util.ArrayList<>();
+        bloqueActual  = "GLOBAL";
+    }
+
+    
     // -------------- ESTRUCTURA PARA PARAMETROS----------
     public static class Parametro {
         public final String nombre;
@@ -99,7 +109,7 @@ parser code {:
             System.out.println("Nombre : " + e.nombre);
             System.out.println("Clase  : " + e.clase);
             System.out.println("Tipo   : " + e.tipo);
-
+            System.out.println("Bloque   : " + e.bloque);
             if (e.clase == EntradaTS.Clase.VARIABLE) {
                 System.out.println("Alcance : " + (e.esLocal ? "LOCAL" : "GLOBAL"));
             }
@@ -166,31 +176,73 @@ parser code {:
         return buscarVariableGlobal(nombre);
     }
 
-    public void agregarVariableTS(String nombre,
+    // public void agregarVariableTS(String nombre,
+    //                             String tipo,
+    //                             boolean esLocal,
+    //                             boolean esParametro) {
+
+    //     String bloque = esLocal ? bloqueActual : "GLOBAL";
+
+    //     // 1) ¿ya existe variable en este bloque?
+    //     if (buscarVariableEnBloque(nombre, bloque) != null) {
+    //         addSemanticError(
+    //             "Identificador ya declarado en el bloque " + bloque + ": " + nombre
+    //         );
+    //         return;
+    //     }
+
+    //     // 2) si es local, NO puede llamarse igual que una global
+    //     if (esLocal && buscarVariableGlobal(nombre) != null) {
+    //         addSemanticError(
+    //             "Variable local '" + nombre +
+    //             "' no puede llamarse igual que una variable global"
+    //         );
+    //         return;
+    //     }
+
+    //     // 3) registrar en la TS
+    //     tablaSimbolos.add(
+    //         new EntradaTS(
+    //             nombre,
+    //             EntradaTS.Clase.VARIABLE,
+    //             tipo,
+    //             esLocal,
+    //             bloque,
+    //             esParametro,
+    //             null
+    //         )
+    //     );
+    // }
+        public void agregarVariableTS(String nombre,
                                 String tipo,
                                 boolean esLocal,
                                 boolean esParametro) {
 
         String bloque = esLocal ? bloqueActual : "GLOBAL";
 
-        // 1) ¿ya existe variable en este bloque?
-        if (buscarVariableEnBloque(nombre, bloque) != null) {
-            addSemanticError(
-                "Identificador ya declarado en el bloque " + bloque + ": " + nombre
-            );
-            return;
+        // --- Chequeo fuerte de duplicado: misma variable en el mismo bloque --- 
+        for (EntradaTS e : tablaSimbolos) {
+            if (e.clase == EntradaTS.Clase.VARIABLE
+                    && e.nombre.equals(nombre)
+                    && e.bloque.equals(bloque)) {
+                // Ya existe esa variable en ese mismo bloque.
+                // Por ahora NO agregamos otra entrada ni reportamos error semántico.
+                return;
+            }
         }
 
-        // 2) si es local, NO puede llamarse igual que una global
-        if (esLocal && buscarVariableGlobal(nombre) != null) {
-            addSemanticError(
-                "Variable local '" + nombre +
-                "' no puede llamarse igual que una variable global"
-            );
-            return;
+        if (esLocal) {
+            for (EntradaTS e : tablaSimbolos) {
+                if (e.clase == EntradaTS.Clase.VARIABLE
+                        && !e.esLocal
+                        && "GLOBAL".equals(e.bloque)
+                        && e.nombre.equals(nombre)) {
+                    // Variable local con mismo nombre que global -> lo ignoramos
+                    return;
+                }
+            }
         }
-
-        // 3) registrar en la TS
+        // --- Registrar en la TS ---
         tablaSimbolos.add(
             new EntradaTS(
                 nombre,
@@ -203,7 +255,6 @@ parser code {:
             )
         );
     }
-
     //Agregar una funcion o procedimiento
     public void agregarFuncionTS(String nombre,
                                 String tipoRetorno,
@@ -361,6 +412,10 @@ parser code {:
         }
     }
 
+    public boolean enMain() {
+    return "GLOBAL".equals(bloqueActual);
+}
+
 :};
 
 // ====================== Terminals ====================== //
@@ -483,19 +538,23 @@ decl_item ::=
         boolean esLocal = !"GLOBAL".equals(parser.bloqueActual);
 
         for (String nombre : parser.tmpIdList) {
-            // Registrar en la tabla de símbolos
+            // 1) Tabla de símbolos (global o local)
             parser.agregarVariableTS(
                 nombre,
                 parser.tmpType,
                 esLocal,    // true si estamos en función/proc, false si es global
                 false       // no es parámetro
             );
-            CodeGenerator.getInstance().declararGlobal(nombre, parser.tmpType);
+
+            // 2) Solo las GLOBAL van al .UDATA
+            if (!esLocal) {
+                CodeGenerator.getInstance().declararGlobal(nombre, parser.tmpType);
+            }
         }
 
-        // Limpiamos la lista temporal
         parser.tmpIdList.clear();
         parser.tmpType = null;
+
     :}
   | id_list COLON type_spec error:e
       {: parser.addError("Línea " + eleft + ": Falta punto y coma"); :}
@@ -571,16 +630,18 @@ funcs_opt ::= func_list | /* vacío */ ;
 func_list ::= func_list func | func_list proc | func | proc ;
 
 func ::=
-    FUNCTION ID:id LPAREN param_secs RPAREN COLON type_spec 
+    FUNCTION ID:id LPAREN 
         {:
-            parser.pilaBloques.push(parser.bloqueActual);
-            String nombreFun = id.toString();
-            parser.bloqueActual = nombreFun;
-            String tipoRet = parser.tmpType;   // viene del type_spec del header
-
-            // tmpParams ya tiene los parámetros en orden
-            parser.agregarFuncionTS(nombreFun, tipoRet, false);
+            parser.pilaBloques.push(parser.bloqueActual);    
+            parser.bloqueActual = id.toString();
+            parser.tmpParams.clear();
         :}
+    param_secs RPAREN COLON type_spec 
+    {:
+        String nombreFun = parser.bloqueActual;
+        String tipoRet = parser.tmpType; 
+        parser.agregarFuncionTS(nombreFun, tipoRet, false);
+    :}
     func_block
     {:
           parser.bloqueActual = parser.pilaBloques.pop();
@@ -590,17 +651,22 @@ func ::=
   ;
 
 proc ::=
-    PROCEDURE ID:id LPAREN param_secs RPAREN 
+    PROCEDURE ID:id 
         {:
-            parser.pilaBloques.push(parser.bloqueActual);
-            String nombreProc = id.toString();
-            parser.bloqueActual = nombreProc;
-            parser.agregarFuncionTS(nombreProc, "VOID", true);
+            parser.pilaBloques.push(parser.bloqueActual);    
+            parser.bloqueActual = id.toString();
+            parser.tmpParams.clear();
         :}
+    
+    LPAREN param_secs RPAREN 
+    {:
+        String nombreFun = parser.bloqueActual;
+        parser.agregarFuncionTS(nombreFun, "VOID", true);
+     :}
     proc_block
-        {:
-            parser.bloqueActual = parser.pilaBloques.pop();
-        :}
+     {:
+          parser.bloqueActual = parser.pilaBloques.pop();
+    :}
   | PROCEDURE error:e SEMI proc_block
       {: parser.addError("Línea " + eleft + ": Error en declaración de procedimiento"); :}
   ;
@@ -660,46 +726,49 @@ stmt ::=
     ID:id ASSIGN expr:e SEMI
       {:
       
-      String dest = id.toString();
-      codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-      String tipoDest = cg.getGlobalType(dest);
+        String dest = id.toString();
+        Parser.DO valor = (Parser.DO) e;
+        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
 
-      DO valor = (DO) e;           
-      String tipoExpr = valor.tipo;
+        // Estamos dentro del main (bloque global)
+        if (parser.enMain()) {
 
-      if (tipoDest == null) {
-          parser.addError("Variable no declarada: " + dest); //ANALISIS SEMANTICO
-      } else if ("STRING".equals(tipoDest)) {
-          // ANALISIS SEMANTICO
-          if (!"STRING".equals(tipoExpr)) {
-              parser.addError("No se puede asignar " + tipoExpr
-                              + " a variable STRING " + dest);
-          } else {
-              if (valor.clase == DO.Clase.CONST) { // si se sta asignando un string directo a la variable
-                  cg.emitCopyStringLiteral(dest, valor.valorConst);
-              } else { // Si se estan asignando a una variable tipo string el contenido de otra tipo string
-                  cg.emitCopyStringVar(dest, valor.nombre);
-              }
-          }
+            // Buscar si existe en la TS
+            EntradaTS entVar = parser.buscarVariableVisible(dest);
+            String tipoDest;
 
-      } else {
-          // ANALISIS SEMANTICO
-          if ("STRING".equals(tipoExpr)) {
-              parser.addError(
-                  "No se puede asignar STRING a variable "
-                  + tipoDest + " (" + dest + ")"
-              );
-          } else {
-            
-              cg.emitLoad(valor); // Hacer push en la pila
-              cg.emit("    pop eax\n"); // guardarlo en eax
-              if ("CHAR".equals(tipoDest)) {
-                  cg.emit("    mov [" + dest + "], al\n"); //CHAR
-              } else {
-                  cg.emit("    mov [" + dest + "], eax\n"); //INT, FLOAT
-              }
-          }
-      }
+            if (entVar == null) {
+                // Si no existe, la creamos como global INT (o el tipo que quieras por defecto)
+                tipoDest = "INT";
+                parser.agregarVariableTS(
+                    dest,
+                    tipoDest,
+                    false,   // GLOBAL
+                    false
+                );
+                CodeGenerator.getInstance().declararGlobal(dest, tipoDest);
+            } else {
+                tipoDest = entVar.tipo;
+            }
+
+            // Generación de código SIN validaciones de tipos
+            if ("STRING".equals(tipoDest)) {
+                if (valor.clase == Parser.DO.Clase.CONST) {
+                    cg.emitCopyStringLiteral(dest, valor.valorConst);
+                } else {
+                    cg.emitCopyStringVar(dest, valor.nombre);
+                }
+            } else {
+                cg.emitLoad(valor);
+                cg.emit("    pop eax\n");
+                if ("CHAR".equals(tipoDest)) {
+                    cg.emit("    mov [" + dest + "], al\n");
+                } else {
+                    cg.emit("    mov [" + dest + "], eax\n");
+                }
+            }
+        }
+        // Si NO estamos en main no generamos nada de ASM.
 
       :}
   | ID ASSIGN bExpr SEMI
@@ -718,8 +787,10 @@ stmt ::=
   | WRITE LPAREN write_args RPAREN SEMI
     {:
         // Al final del WRITE metemos un salto de línea
-        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-        cg.emit("    nwln\n");
+         if (parser.enMain()) {
+            codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+            cg.emit("    nwln\n");
+        }
     :}
   | WRITE LPAREN write_args RPAREN error:e
       {: parser.addError("Línea " + eleft + ": Falta punto y coma"); :}
@@ -822,15 +893,19 @@ args_plus ::=
 write_args ::=
     expr:e
       {:
-          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-          Parser.DO d = (Parser.DO) e;
-          cg.emitWrite(d);
+          if (parser.enMain()) {
+              codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+              Parser.DO d = (Parser.DO) e;
+              cg.emitWrite(d);
+          }
       :}
   | write_args COMMA expr:e
       {:
-          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-          Parser.DO d = (Parser.DO) e;
-          cg.emitWrite(d);
+          if (parser.enMain()) {
+              codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+              Parser.DO d = (Parser.DO) e;
+              cg.emitWrite(d);
+          }
       :}
   ;
 
@@ -923,56 +998,54 @@ expr ::=
     // expr PLUS expr
     expr:e1 PLUS expr:e2
         {:
-            codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-            DO a = (DO) e1;
-            DO b = (DO) e2;
+            Parser.DO a = (Parser.DO) e1;
+            Parser.DO b = (Parser.DO) e2;
 
-            // ANALISIS SEMANTICO
-            if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
-                parser.addError("Suma solo permitida entre INT, se usó: "
-                                + a.tipo + " + " + b.tipo);
-            }
+            if (parser.enMain()) {
+                codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
 
-            //temporal para el resultado
-            String temp = cg.newTemp();
-            cg.declararTemporal(temp, "INT"); 
-            DO res = new DO("INT", DO.OrigenAddr.TEMP, temp);
+                // Temporal para el resultado
+                String temp = cg.newTemp();
+                cg.declararTemporal(temp, "INT"); 
+                DO res = new DO("INT", DO.OrigenAddr.TEMP, temp);
 
-            cg.emitLoad(a);     // push valor de a
-            cg.emitLoad(b);     // push valor de b
-            cg.emit("    pop ebx\n");
-            cg.emit("    pop eax\n");
-            cg.emit("    add eax, ebx\n");
-            cg.emit("    mov [" + temp + "], eax\n");
+                cg.emitLoad(a);
+                cg.emitLoad(b);
+                cg.emit("    pop ebx\n");
+                cg.emit("    pop eax\n");
+                cg.emit("    add eax, ebx\n");
+                cg.emit("    mov [" + temp + "], eax\n");
 
-            RESULT = res;
+                RESULT = res;
+            } else {
+                // Dentro de funciones: no generamos código,
+                // solo devolvemos algún DO dummy
+                RESULT = new DO("INT", "0");
+            }        
         :}
   | expr: e1 MINUS expr: e2
       {:
-        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-        DO a = (DO) e1;
-        DO b = (DO) e2;
+        Parser.DO a = (Parser.DO) e1;
+        Parser.DO b = (Parser.DO) e2;
 
-        // ANÁLISIS SEMÁNTICO
-        if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
-            parser.addError("Resta solo permitida entre INT, se usó: "
-                            + a.tipo + " - " + b.tipo);
+        if (parser.enMain()) {
+            codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+
+            String temp = cg.newTemp();
+            cg.declararTemporal(temp, "INT");
+            DO res = new DO("INT", DO.OrigenAddr.TEMP, temp);
+
+            cg.emitLoad(a);
+            cg.emitLoad(b);
+            cg.emit("    pop ebx\n");
+            cg.emit("    pop eax\n");
+            cg.emit("    sub eax, ebx\n");
+            cg.emit("    mov [" + temp + "], eax\n");
+
+            RESULT = res;
+        } else {
+            RESULT = new DO("INT", "0");
         }
-
-        // Temporal para el resultado
-        String temp = cg.newTemp();
-        cg.declararTemporal(temp, "INT");
-        DO res = new DO("INT", DO.OrigenAddr.TEMP, temp);
-
-        // Código
-        cg.emitLoad(a);   // push valor de a
-        cg.emitLoad(b);   // push valor de b
-        cg.emit("    pop ebx\n");
-        cg.emit("    pop eax\n");
-        cg.emit("    sub eax, ebx\n");
-        cg.emit("    mov [" + temp + "], eax\n");
-
-        RESULT = res;
     :}
   | expr TIMES expr
   | expr DIVIDE expr
@@ -1022,52 +1095,88 @@ expr ::=
   | ID LPAREN args_opt RPAREN
   | expr:e1 INC
     {:
-        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-        DO d = (DO) e1;
+        // codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        // DO d = (DO) e1;
 
-        // ANALISIS SEMANTICO
-        if (!"INT".equals(d.tipo)) {
-            parser.addError("INC solo permitido sobre INT, se usó: " + d.tipo);
+        // // ANALISIS SEMANTICO
+        // if (!"INT".equals(d.tipo)) {
+        //     parser.addError("INC solo permitido sobre INT, se usó: " + d.tipo);
+        // }
+        // if (d.clase != DO.Clase.ADDR) {
+        //     parser.addError("INC solo permitido sobre direcciones (variables/temporales)");
+        // }
+        // // push en la pila
+        // cg.emitLoad(d);
+        // // incrementar
+        // cg.emit("    pop eax\n");
+        // cg.emit("    inc eax\n");
+        // cg.emit("    mov [" + d.nombre + "], eax\n");
+
+        // // guardar resultado en un temporal
+        // String temp = cg.newTemp();
+        // cg.declararTemporal(temp, "INT");
+        // cg.emit("    mov [" + temp + "], eax\n");
+
+        // RESULT = new DO("INT", DO.OrigenAddr.TEMP, temp);
+        Parser.DO d = (Parser.DO) e1;
+
+        if (parser.enMain()) {
+            codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+
+            cg.emitLoad(d);
+            cg.emit("    pop eax\n");
+            cg.emit("    inc eax\n");
+            cg.emit("    mov [" + d.nombre + "], eax\n");
+
+            String temp = cg.newTemp();
+            cg.declararTemporal(temp, "INT");
+            cg.emit("    mov [" + temp + "], eax\n");
+
+            RESULT = new DO("INT", DO.OrigenAddr.TEMP, temp);
+        } else {
+            RESULT = new DO("INT", "0");
         }
-        if (d.clase != DO.Clase.ADDR) {
-            parser.addError("INC solo permitido sobre direcciones (variables/temporales)");
-        }
-        // push en la pila
-        cg.emitLoad(d);
-        // incrementar
-        cg.emit("    pop eax\n");
-        cg.emit("    inc eax\n");
-        cg.emit("    mov [" + d.nombre + "], eax\n");
-
-        // guardar resultado en un temporal
-        String temp = cg.newTemp();
-        cg.declararTemporal(temp, "INT");
-        cg.emit("    mov [" + temp + "], eax\n");
-
-        RESULT = new DO("INT", DO.OrigenAddr.TEMP, temp);
     :}
   | expr:e1 DEC
     {:
-        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-        DO d = (DO) e1;
-        // ANALISIS SEMANTICO
-        if (!"INT".equals(d.tipo)) {
-            parser.addError("DEC solo permitido sobre INT, se usó: " + d.tipo);
+        // codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        // DO d = (DO) e1;
+        // // ANALISIS SEMANTICO
+        // if (!"INT".equals(d.tipo)) {
+        //     parser.addError("DEC solo permitido sobre INT, se usó: " + d.tipo);
+        // }
+        // if (d.clase != DO.Clase.ADDR) {
+        //     parser.addError("DEC solo permitido sobre direcciones (variables/temporales)");
+        // }
+
+        // cg.emitLoad(d);
+        // cg.emit("    pop eax\n");
+        // cg.emit("    dec eax\n");
+        // cg.emit("    mov [" + d.nombre + "], eax\n");
+
+        // String temp = cg.newTemp();
+        // cg.declararTemporal(temp, "INT");
+        // cg.emit("    mov [" + temp + "], eax\n");
+
+        // RESULT = new DO("INT", DO.OrigenAddr.TEMP, temp);
+        Parser.DO d = (Parser.DO) e1;
+
+        if (parser.enMain()) {
+            codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+
+            cg.emitLoad(d);
+            cg.emit("    pop eax\n");
+            cg.emit("    dec eax\n");
+            cg.emit("    mov [" + d.nombre + "], eax\n");
+
+            String temp = cg.newTemp();
+            cg.declararTemporal(temp, "INT");
+            cg.emit("    mov [" + temp + "], eax\n");
+
+            RESULT = new DO("INT", DO.OrigenAddr.TEMP, temp);
+        } else {
+            RESULT = new DO("INT", "0");
         }
-        if (d.clase != DO.Clase.ADDR) {
-            parser.addError("DEC solo permitido sobre direcciones (variables/temporales)");
-        }
-
-        cg.emitLoad(d);
-        cg.emit("    pop eax\n");
-        cg.emit("    dec eax\n");
-        cg.emit("    mov [" + d.nombre + "], eax\n");
-
-        String temp = cg.newTemp();
-        cg.declararTemporal(temp, "INT");
-        cg.emit("    mov [" + temp + "], eax\n");
-
-        RESULT = new DO("INT", DO.OrigenAddr.TEMP, temp);
     :}
 
   // Recuperación específica para token ERROR (devuelto por el scanner)
