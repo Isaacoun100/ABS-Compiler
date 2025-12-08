@@ -1,6 +1,8 @@
 import java.io.*;
 import java.nio.file.*;
 import java.util.ArrayList;
+import java.util.List;
+
 import scanner.absScanner;
 import parser.Parser;
 import codigo.CodeGenerator;
@@ -29,11 +31,12 @@ public class Main {
                 // Collect any errors that occurred during lexical and syntactic analysis
                 ArrayList<String> lexErrors = lexer.lexErrors;
                 ArrayList<String> synErrors = parser.synErrors;
+                List<String> semErrors = CodeGenerator.getInstance().getSemanticErrors();
 
-                if (lexErrors.isEmpty() && synErrors.isEmpty()) {
+                if (lexErrors.isEmpty() && synErrors.isEmpty() && semErrors.isEmpty()) {
                     generateCode(result);
                 } else {
-                    printErrors(lexErrors, synErrors);
+                    printErrors(lexErrors, synErrors, semErrors);
                 }
 
             } catch (Exception e) {
@@ -71,7 +74,10 @@ public class Main {
         System.out.println("✓ AST/resultado: " + result);
     }
 
-    private static void printErrors(ArrayList<String> lexErrors, ArrayList<String> synErrors) {
+    private static void printErrors(ArrayList<String> lexErrors,
+                                    ArrayList<String> synErrors,
+                                    List<String> semErrors) {
+
         
         if (!lexErrors.isEmpty()) {
             System.out.println("\n========== ERRORES LÉXICOS (" + lexErrors.size() + ") ==========");
@@ -83,9 +89,16 @@ public class Main {
             synErrors.forEach(error -> System.out.println("  ✗ " + error));
         }
 
+        if (!semErrors.isEmpty()) {
+            System.out.println("\n========== ERRORES SEMÁNTICOS (" + semErrors.size() + ") ==========");
+            semErrors.forEach(error -> System.out.println("  ✗ " + error));
+        }
+
         System.out.println("\n-----------------------------------------------------");
         System.out.println("Total: " + lexErrors.size() + " léxico(s), " +
-                synErrors.size() + " sintáctico(s)");
+                synErrors.size() + " sintáctico(s), " +
+                semErrors.size() + " semántico(s)");
+                
     }
 
     private static void handleParseException(Parser parser, Exception e) {
