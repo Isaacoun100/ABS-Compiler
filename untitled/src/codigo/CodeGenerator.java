@@ -28,17 +28,48 @@ public class CodeGenerator {
     //Instrucciones del main
      private final List<String> mainCode = new ArrayList<>();
     
-    //----------GUARDAR VARIABLES GLOBALES--------------------
-    // guardamos las variables globales en la lista cuando las encontremos en el VAR
-    public void declararGlobal(String nombre, String tipo) {
-        if (globalVars.containsKey(nombre)) {
-            // TODO: esto debería ir a la lista de errores semánticos,
-            System.err.println("Advertencia: variable global repetida: " + nombre);
-            return;
+     // --------------------- lista de errores semánticos -----------------
+    private final List<String> semanticErrors = new ArrayList<>();
+
+    public void addSemanticError(String msg) {
+        // si no querés duplicados:
+        if (!semanticErrors.contains(msg)) {
+            semanticErrors.add(msg);
         }
-        globalVars.put(nombre, tipo);
     }
 
+    public List<String> getSemanticErrors() {
+        return semanticErrors;
+    }
+
+    // ¿La variable existe? (por ahora solo revisa globales)
+    public boolean isVarDefined(String name) {
+        return globalVars.containsKey(name);
+    }
+
+    // Obtener el tipo de la variable (por ahora solo globales)
+    public String getVarType(String name) {
+        return globalVars.get(name);
+    }
+
+    //----------GUARDAR VARIABLES GLOBALES--------------------
+    // guardamos las variables globales en la lista cuando las encontremos en el VAR
+    // public void declararGlobal(String nombre, String tipo) {
+    //     if (globalVars.containsKey(nombre)) {
+    //         addSemanticError("Variable global '" + nombre + "' declarada más de una vez"); //Implementado el que de este error, faltan pruebas 
+    //         return;
+    //     }
+    //     globalVars.put(nombre, tipo);
+    // }
+
+    //Nueva version, ahora el error lo ponemos en el parser 
+    public void declararGlobal(String nombre, String tipo) {
+    if (globalVars.containsKey(nombre)) {
+        // Ya reportamos el error desde el parser, aquí solo evitamos duplicar
+        return;
+    }
+    globalVars.put(nombre, tipo);
+}
     //----------METODO PARA AÑADIR UNA INSTRUCCION AL MAIN-------
     // La lista de instrucciones del main
     public void emit(String instr) {

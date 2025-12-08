@@ -6,11 +6,131 @@ package parser;
 import java.util.*;
 import java_cup.runtime.*;
 import codigo.CodeGenerator;
+
 /* Aqui hacemos override a los errores que por defecto muestra cup para así
  * poder distinguir entre los tipos de errores, lo cual hace más fácil reconocer
  * los errores y seguimos la indicación sobre los errores
  */
+
 parser code {:
+
+  // === Tipos básicos que usaremos en semántica ===
+  public static final String TYPE_INT      = "INT";
+  public static final String TYPE_REAL     = "REAL";
+  public static final String TYPE_STRING   = "STRING";
+  public static final String TYPE_CHAR     = "CHAR";
+  public static final String TYPE_UNKNOWN  = "UNKNOWN";
+
+  // Obtener tipo de un identificador (por ahora, solo variables globales)
+  public String getIdType(Object idVal) {
+    if (idVal == null) return TYPE_UNKNOWN;
+    String name = idVal.toString();
+    String t = CodeGenerator.getInstance().getVarType(name);
+    return (t != null) ? t : TYPE_UNKNOWN;
+  }
+
+
+  //PARA DECLARACION DE VARIABLES Y VARIABLES NO DEFINIDAS: 
+    public void addSemanticError(String msg, int line) {
+    String full = (line >= 0)
+        ? ("Línea " + line + ": " + msg)
+        : msg;
+    CodeGenerator.getInstance().addSemanticError(full);
+    }
+
+  // Verificar que una variable exista (por ahora solo global)
+  // idVal = value del token ID (normalmente el lexema "a", "b", etc.)
+    public void checkVarDefined(Object idVal, int line) {
+      if (idVal == null) return;
+
+      String name = idVal.toString();
+
+      if (!CodeGenerator.getInstance().isVarDefined(name)) {
+        addSemanticError("Variable '" + name + "' no definida", line);
+      }
+    }
+  
+  //PARA LAS FUNCIONES Y PROCEDIMIENTOS: 
+
+  public static class RoutineInfo {
+    public boolean isProcedure;
+    public java.util.List paramTypes; // lista de String ("INT", "REAL", ...)
+
+    public RoutineInfo(boolean isProcedure, java.util.List paramTypes) {
+      this.isProcedure = isProcedure;
+      this.paramTypes = paramTypes;
+    }
+  }
+  public java.util.Map<String, RoutineInfo> routines = new java.util.HashMap<>();
+
+  // lista temporal donde acumulamos tipos de parámetros al leer el encabezado
+  public java.util.List tmpParamTypes = new java.util.ArrayList();
+
+  // Registrar una nueva FUNCTION/PROCEDURE
+  public void registerRoutine(Object idVal, int line, boolean isProcedure, java.util.List paramTypes) {
+    if (idVal == null) return;
+
+    String name = idVal.toString();
+
+    if (routines.containsKey(name)) {
+      String kind = isProcedure ? "Procedimiento" : "Función";
+      addSemanticError(kind + " '" + name + "' declarado más de una vez", line);
+    } else {
+      // Guardamos una copia de la lista de tipos de parámetros
+      routines.put(name, new RoutineInfo(isProcedure, new java.util.ArrayList(paramTypes)));
+    }
+  }
+
+  // Verificar que una FUNCTION/PROCEDURE exista
+  public void checkRoutineDefined(Object idVal, Object argTypesObj, int line) {
+    if (idVal == null) return;
+
+    // Cast seguro a List (lo que construimos en args_opt)
+    java.util.List argTypes = null;
+    if (argTypesObj instanceof java.util.List) {
+        argTypes = (java.util.List) argTypesObj;
+    }
+
+    String name = idVal.toString();
+    RoutineInfo info = routines.get(name);
+
+    if (info == null) {
+      addSemanticError("Función o procedimiento '" + name + "' no definido", line);
+      return;
+    }
+
+    // --- Cantidad ---
+    int expected = (info.paramTypes == null) ? 0 : info.paramTypes.size();
+    int given    = (argTypes == null)        ? 0 : argTypes.size();
+
+    if (expected != given) {
+      addSemanticError(
+        "Cantidad de parámetros incorrecta en llamada a '" + name +
+        "': se esperaban " + expected + " y se recibieron " + given,
+        line
+      );
+      return;
+    }
+
+    // --- Tipos ---
+    for (int i = 0; i < expected; i++) {
+      String expectedType = (String) info.paramTypes.get(i);
+      String actualType   = (String) argTypes.get(i);
+
+      if (actualType == null)
+        actualType = TYPE_UNKNOWN;
+
+      if (!TYPE_UNKNOWN.equals(actualType) && !expectedType.equals(actualType)) {
+        addSemanticError(
+          "Tipo de parámetro " + (i + 1) + " incorrecto en llamada a '" + name +
+          "': se esperaba " + expectedType + " y se recibió " + actualType,
+          line
+        );
+      }
+    }
+  }
+
+  // /////////////////////////////////////////////////////////////////////////////
 
   // Listado de errores del parser
   public ArrayList<String> synErrors = new ArrayList<>();
@@ -75,7 +195,16 @@ parser code {:
   }
 
   // Para ir acumulando los IDs de una declaración (a, b, c: INT;)
-  public java.util.List<String> tmpIdList = new java.util.ArrayList<>();
+  public static class IdDecl {
+    public String name;
+    public int line;
+    public IdDecl(String name, int line) {
+      this.name = name;
+      this.line = line;
+    }
+  }
+
+  public java.util.List<IdDecl> tmpIdList = new java.util.ArrayList<>();
 
   // Para guardar el tipo actual (INT, REAL, STRING, CHAR)
   public String tmpType = null;
@@ -102,7 +231,8 @@ non terminal program, main_block, decls_opt, type_spec;
 non terminal funcs_opt, func_list, func, proc, param_secs, param_sec, id_list, block;
 non terminal stmt_list, stmt, expr, bExpr;
 non terminal func_block, proc_block, return_stmt;
-non terminal args_opt, args_plus, write_args, var_sections, var_sections_tail, decl_items, decl_item, decl_items_tail;
+non terminal java.util.List args_opt, args_plus;
+non terminal write_args, var_sections, var_sections_tail, decl_items, decl_item, decl_items_tail;
 
 // ==================== Precedence Table ==================== //
 // Denfies the order of max prior, it tells cup how to resolve conflicts, to know what operator has a higher
@@ -200,11 +330,24 @@ decl_items_tail ::=
 decl_item ::=
     id_list COLON type_spec SEMI
     {:
-        //Generamos el codigo para la declaracion de variables
-        for (String nombre : parser.tmpIdList) {
-            CodeGenerator.getInstance().declararGlobal(nombre, parser.tmpType);
+        // Para cada ID declarado en esta línea...
+        for (IdDecl idInfo : parser.tmpIdList) {
+            String nombre = idInfo.name;
+            int line = idInfo.line;
+
+            // ¿Ya estaba declarada globalmente?
+            if (CodeGenerator.getInstance().isVarDefined(nombre)) {
+                parser.addSemanticError(
+                    "Variable global '" + nombre + "' declarada más de una vez",
+                    line
+                );
+            } else {
+                // Primera vez → la guardamos como global
+                CodeGenerator.getInstance().declararGlobal(nombre, parser.tmpType);
+            }
         }
-        // Limpiamos la "pila"
+
+        // Limpiamos la lista y el tipo temporal
         parser.tmpIdList.clear();
         parser.tmpType = null;
     :}
@@ -216,14 +359,13 @@ decl_item ::=
 
 id_list ::= id_list COMMA ID:id
       {:
-      // Añadimos otro identificador a la lista actual
-        parser.tmpIdList.add(id.toString());
+        parser.tmpIdList.add(new IdDecl(id.toString(), idleft));
       :}
 | ID:id  // ID: id guardar el valor del id para poder usarlo
       {:
           // Empezamos una nueva lista de IDs para esta declaración
           parser.tmpIdList.clear();
-          parser.tmpIdList.add(id.toString());
+          parser.tmpIdList.add(new IdDecl(id.toString(), idleft));
       :} ;
 
 // type_spec ::= TINT | TREAL | TSTRING | TCHAR ;
@@ -280,20 +422,40 @@ funcs_opt ::= func_list | /* vacío */ ;
 func_list ::= func_list func | func_list proc | func | proc ;
 
 func ::=
-    FUNCTION ID LPAREN param_secs RPAREN COLON type_spec SEMI func_block
+    FUNCTION ID:fname LPAREN param_secs RPAREN COLON type_spec SEMI func_block
+      {:
+        // false = es función (tiene tipo de retorno)
+        parser.registerRoutine(fname, fnameleft, false, parser.tmpParamTypes);
+        parser.tmpParamTypes.clear(); // dejar limpio para la siguiente rutina
+      :}
   | FUNCTION error:e SEMI func_block
       {: parser.addError("Línea " + eleft + ": Error en declaración de función"); :}
   ;
 
 proc ::=
-    PROCEDURE ID LPAREN param_secs RPAREN SEMI proc_block
+    PROCEDURE ID:fname LPAREN param_secs RPAREN SEMI proc_block
+    {:
+        // true = es procedimiento (sin retorno)
+        parser.registerRoutine(fname, fnameleft, true, parser.tmpParamTypes);
+        parser.tmpParamTypes.clear();
+    :}
   | PROCEDURE error:e SEMI proc_block
       {: parser.addError("Línea " + eleft + ": Error en declaración de procedimiento"); :}
   ;
 
 param_secs ::= param_secs SEMI param_sec | param_sec | /* vacío */ ;
 
-param_sec  ::= id_list COLON type_spec ;
+param_sec  ::=  id_list COLON type_spec
+      {:
+        // Por cada parámetro declarado aquí, agregamos su tipo a la lista temporal
+        for (IdDecl idInfo : parser.tmpIdList) {
+          parser.tmpParamTypes.add(parser.tmpType);
+          // (si luego querés, aquí podrías registrar parámetros como variables locales)
+        }
+        parser.tmpIdList.clear();
+        parser.tmpType = null;
+      :} 
+      ;
 
 block ::=
     BEGIN stmt_list END
@@ -323,8 +485,8 @@ block ::=
 
 stmt ::=
     // Asignaciones
-    ID ASSIGN expr SEMI
-  | ID ASSIGN bExpr SEMI
+    ID:id ASSIGN expr SEMI {: parser.checkVarDefined(id, idleft); :}
+  | ID:id ASSIGN bExpr SEMI {: parser.checkVarDefined(id, idleft); :}
   | ID ASSIGN expr error:e
       {: parser.addError("Línea " + eleft + ": Falta punto y coma"); :}
   | ID error:e expr SEMI
@@ -344,9 +506,15 @@ stmt ::=
       {: parser.addError("Línea " + eleft + ": Error en WRITE"); :}
 
   // Llamadas a funciones/procedimientos
-  | ID LPAREN args_opt RPAREN SEMI
-  | ID LPAREN args_opt RPAREN error:e
-      {: parser.addError("Línea " + eleft + ": Falta punto y coma"); :}
+  | ID:fname LPAREN args_opt:args RPAREN SEMI
+      {:
+        parser.checkRoutineDefined(fname, args, fnameleft);
+      :}
+  | ID:fname LPAREN args_opt:args RPAREN error:e
+      {:
+        parser.checkRoutineDefined(fname, args, fnameleft);
+        parser.addError("Línea " + eleft + ": Falta punto y coma");
+      :}
 
   // IF statements
   | IF bExpr THEN block
@@ -393,11 +561,29 @@ stmt ::=
 
 //================================================================================================================
 
-args_opt  ::= /* vacío */ | args_plus ;
+args_opt ::=
+    /* vacío */
+      {:
+        RESULT = new java.util.ArrayList();
+      :}
+  | args_plus:list
+      {:
+         RESULT = list;
+      :}
+  ;
 
 args_plus ::=
-    expr
-  | args_plus COMMA expr
+    expr:e
+      {:
+        java.util.List list = new java.util.ArrayList();
+        list.add(e);   // e es el "tipo" devuelto por expr (INT, REAL, etc.)
+        RESULT = list;
+      :}
+  | args_plus:prev COMMA expr:e
+      {:
+        prev.add(e);   // ahora prev es java.util.List, ya no Object
+        RESULT = prev;
+      :}
   ;
 
 write_args ::=
@@ -410,22 +596,6 @@ write_args ::=
 // ==================== EXPRESIONES BOOLEANAS (SIN conflictos) ====================
 
 
-//    bExpr ::=
-//       expr EQ expr | expr NE expr | expr LT expr
-//     | expr LE expr | expr GT expr | expr GE expr
-//     | bExpr OR bExpr
-//     | bExpr AND bExpr
-//     | NOT bExpr
-//     | LPAREN bExpr RPAREN
-//     ;
-
-//   - Comparaciones entre expresiones aritméticas.
-//   - Conectores: OR / AND / NOT.
-//   - Paréntesis para agrupar.
-
-//  Precedencia (definida en "precedence"):
-//     AND > OR; comparadores por encima de ambos.
-//     `NOT` se aplica directamente sobre bExpr.
 
 bExpr ::=
     expr EQ expr
@@ -444,49 +614,60 @@ bExpr ::=
 
 // ==================== EXPRESIONES ARITMÉTICAS (SIN conflictos) ====================
 
-//expr ::=
-//       expr PLUS expr
-//     | expr MINUS expr
-//     | expr TIMES expr
-//     | expr DIVIDE expr
-//     | expr MOD expr
-//     | expr INTDIV expr
-//     | MINUS expr %prec UMINUS
-//     | INT_LIT | REAL_LIT | HEX_LIT | STR_LIT | CHAR_LIT | OCT_LIT | ID
-//     | LPAREN expr RPAREN
-//     ;
-
-//   - Operadores binarios: +, -, *, /, MOD, DIV.
-//   - Menos unario: `-x` (%prec UMINUS) con mayor
-//     prioridad que los binarios (p.ej. `-a * b`
-//     se interpreta como `(-a) * b`).
-//   - Átomos: literales e identificadores.
-//   - Paréntesis para agrupar.
-
-//  Las ambigüedades se resuelven con el bloque
-//   `precedence` (niveles y asociatividad).
-
-
 expr ::=
     expr PLUS expr
+      {: RESULT = TYPE_UNKNOWN; :}
   | expr MINUS expr
+      {: RESULT = TYPE_UNKNOWN; :}
   | expr TIMES expr
+      {: RESULT = TYPE_UNKNOWN; :}
   | expr DIVIDE expr
+      {: RESULT = TYPE_UNKNOWN; :}
   | expr MOD expr
+      {: RESULT = TYPE_UNKNOWN; :}
   | expr INTDIV expr
-  | MINUS expr %prec UMINUS
-  | INT_LIT
-  | REAL_LIT
-  | HEX_LIT
-  | STR_LIT
-  | CHAR_LIT
-  | ID
-  | LPAREN expr RPAREN
-  | ID LPAREN args_opt RPAREN
-  | expr INC
-  | expr DEC
+      {: RESULT = TYPE_UNKNOWN; :}
+  | MINUS expr:e
+      {: RESULT = TYPE_UNKNOWN; :} %prec UMINUS
 
-  // Recuperación específica para token ERROR (devuelto por el scanner)
+  // Literales
+  | INT_LIT
+      {: RESULT = TYPE_INT; :}
+  | REAL_LIT
+      {: RESULT = TYPE_REAL; :}
+  | HEX_LIT
+      {: RESULT = TYPE_INT; :}
+  | STR_LIT
+      {: RESULT = TYPE_STRING; :}
+  | CHAR_LIT
+      {: RESULT = TYPE_CHAR; :}
+
+  // Identificadores (variables globales)
+  | ID:id
+      {:
+        parser.checkVarDefined(id, idleft);
+        RESULT = parser.getIdType(id);
+      :}
+
+  | LPAREN expr:e RPAREN
+      {: RESULT = e; :}
+
+  // Llamadas a funciones/procedimientos usadas en expresiones
+  | ID:fname LPAREN args_opt:args RPAREN
+      {:
+        parser.checkRoutineDefined(fname, args, fnameleft);
+        RESULT = TYPE_UNKNOWN;   // por ahora no inferimos tipo de retorno
+      :}
+
+  | expr:e INC
+      {: RESULT = TYPE_UNKNOWN; :}
+  | expr:e DEC
+      {: RESULT = TYPE_UNKNOWN; :}
+
+  // Recuperación para ERROR léxico
   | ERROR:lex
-        {: parser.addError("Línea " + ((Symbol)lex).left + ": Error léxico"); RESULT = null; :}
+      {:
+        parser.addError("Línea " + ((Symbol)lex).left + ": Error léxico");
+        RESULT = TYPE_UNKNOWN;
+      :}
   ;
