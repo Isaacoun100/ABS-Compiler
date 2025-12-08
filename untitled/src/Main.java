@@ -83,7 +83,6 @@ public class Main {
             System.out.println("\n========== ERRORES SINTÁCTICOS (" + synErrors.size() + ") ==========");
             synErrors.forEach(error -> System.out.println("  ✗ " + error));
         }
-        
         if (!semErrors.isEmpty()) {
         System.out.println("\n========== ERRORES SEMÁNTICOS (" + semErrors.size() + ") ==========");
         semErrors.forEach(error -> System.out.println("  ✗ " + error));
