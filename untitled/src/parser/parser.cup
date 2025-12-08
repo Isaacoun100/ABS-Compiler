@@ -47,6 +47,22 @@ parser code {:
     // addError("Línea " + s.left + ": Error de sintaxis");
   }
 
+
+  /**
+  * Override for unrecovered_syntax_error, which again shouldn't be triggered considering
+  * that the scanning process happened before this, but in some instances it was
+  * triggered so we are just being cautious just in case we find one
+  * @param cur_token
+  */
+  @Override
+  public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
+    // Error fatal: no se pudo recuperar
+    Symbol s = cur_token;
+    addError("Línea " + s.left + ": Error fatal de sintaxis");
+    // No lanzar excepción, solo reportar
+    done_parsing();
+  }
+
   /**
   * When a semantic error is found we will invoke the addError function to add it to the
   * list of semantic errors that we will display at the end of the compilation
