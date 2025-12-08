@@ -1,0 +1,731 @@
+package parser;
+//=======================================================================================================
+
+// Para que los archivos Parser.java y sym.java se creen dentro del paquete parser.
+
+import java.util.*;
+import java_cup.runtime.*;
+import codigo.CodeGenerator;
+/* Aqui hacemos override a los errores que por defecto muestra cup para así
+ * poder distinguir entre los tipos de errores, lo cual hace más fácil reconocer
+ * los errores y seguimos la indicación sobre los errores
+ */
+parser code {:
+
+  // Listado de errores del parser
+  public ArrayList<String> synErrors = new ArrayList<>();
+  private boolean errorRecovering = false;
+
+  public java.util.Stack<String> labelStack = new java.util.Stack<>();
+    private int labelCounter = 0;
+    public String newLabel(String base) {
+        return base + "_" + (labelCounter++);
+    }
+    public java.util.Stack<Integer> indices = new java.util.Stack<>();
+
+  /**
+  * Override for the report_error function to provide a better error message
+  * @param msg
+  * @param info
+  */
+  @Override
+  public void report_error(String msg, Object info) {
+    // Solo reportar si no estamos ya en modo de recuperación
+    if (!errorRecovering) {
+      Symbol s = (Symbol) info;
+      synErrors.add("Línea " + s.left + ": " + msg);
+    }
+  }
+
+  /**
+  * Override for syntax_error function, which shouldn't be triggered considering
+  * that the scanning process happened before this, but in some instances it was
+  * triggered so we are just being cautious just in case we find one
+  * @param cur_token
+  */
+  @Override
+  public void syntax_error(Symbol cur_token) {
+
+    if (cur_token.sym == sym.ERROR)
+      return;
+
+    Symbol s = cur_token;
+    addError("Línea " + s.left + ": Error de sintaxis inesperado");
+
+  }
+
+
+  /**
+  * Override for unrecovered_syntax_error, which again shouldn't be triggered considering
+  * that the scanning process happened before this, but in some instances it was
+  * triggered so we are just being cautious just in case we find one
+  * @param cur_token
+  */
+  @Override
+  public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
+    // Error fatal: no se pudo recuperar
+    Symbol s = cur_token;
+    addError("Línea " + s.left + ": Error fatal: no se puede recuperar del error de sintaxis");
+    // No lanzar excepción, solo reportar
+    done_parsing();
+  }
+
+  /**
+  * When a semantic error is found we will invoke the addError function to add it to the
+  * list of semantic errors that we will display at the end of the compilation
+  * @param error
+  */
+  public void addError(String error) {
+    if (!synErrors.contains(error)) {
+      synErrors.add(error);
+    }
+  }
+
+  // Para ir acumulando los IDs de una declaración (a, b, c: INT;)
+  public java.util.List<String> tmpIdList = new java.util.ArrayList<>();
+
+  // Para guardar el tipo actual (INT, REAL, STRING, CHAR)
+  public String tmpType = null;
+
+  public String currentAssignTarget = null;      // nombre de la variable a la que se está asignando
+  public boolean assignHandledInExpr = false;    // si el código de asignación ya se generó en expr (strings)
+
+    public static class StringExprInfo {
+      public boolean isVar;  // true si es una variable, false si es literal
+      public String text;    // nombre de la variable o texto del literal
+
+      public StringExprInfo(boolean isVar, String text) {
+          this.isVar = isVar;
+          this.text  = text;
+      }
+  }
+:};
+
+// ====================== Terminals ====================== //
+// In this section we have a list of all of the tokens from the lexer, which are provided as a sym obj
+// we simply make a declaration of each terminal for token.
+
+terminal PROGRAM, BEGIN, END, VAR, FUNCTION, PROCEDURE, IF, THEN, ELSE, WHILE, DO, FOR, TO, READ, WRITE;
+terminal TINT, TREAL, TSTRING, TCHAR;
+terminal ASSIGN, INC, DEC, PLUS, MINUS, TIMES, DIVIDE, MOD, INTDIV;
+terminal EQ, GE, GT, LE, LT, NE, OR, AND, NOT;
+terminal LPAREN, RPAREN, LBRACK, RBRACK, COMMA, SEMI, COLON, DOT, CARET;
+terminal ID, INT_LIT, REAL_LIT, HEX_LIT, STR_LIT, CHAR_LIT, OCT_LIT;
+terminal UMINUS;
+terminal KEYWORD, ERROR;
+
+// ==================== Non Terminals ==================== //
+// In a similar fasion as before, here we declare syntax symbols, non terminals, that will build the productions.
+// We define the LHS, the left productions and cup assigns the types and location in the parsing table
+
+non terminal program, main_block, decls_opt, type_spec;
+non terminal funcs_opt, func_list, func, proc, param_secs, param_sec, id_list, block;
+non terminal stmt_list, stmt, expr, bExpr;
+non terminal func_block, proc_block, return_stmt;
+non terminal args_opt, args_plus, write_args, var_sections, var_sections_tail, decl_items, decl_item, decl_items_tail;
+non terminal if_cond;
+// ==================== Precedence Table ==================== //
+// Denfies the order of max prior, it tells cup how to resolve conflicts, to know what operator has a higher
+// priority, which to group when there's repetition, it helps avoids ambiguity
+
+precedence left OR;
+precedence left AND;
+precedence nonassoc EQ, NE, LT, LE, GT, GE;
+precedence left PLUS, MINUS;
+precedence left TIMES, DIVIDE, MOD, INTDIV;
+precedence left INC, DEC;
+precedence right UMINUS;
+
+// ================== Initial non terminal ================== //
+// Tells cup which terminal we are going to use first
+
+start with program;
+
+// ==================== PROGRAM: Recuperación de errores a nivel principal ====================
+
+//program ::= obliga a que el archivo empiece con la palabra PROGRAM, luego un nombre ID, y despúes el
+//            bloque principal
+//decls_opt = globales opcionales
+//funcs_opt = funciones/procedimientos opcionales
+//main_block ::= es el main que va en medio del BEGIN y END, y dentro debe haber un stmt_list, osea, la
+//              lista de sentencias.
+//stmt_list ::=  dentro de esta se hace una definición recursiva que significa una o más sentencias, osea
+//              se toma la sentencia anterior, y se acumula la nueva.
+
+program ::=
+    PROGRAM ID decls_opt funcs_opt main_block
+  | PROGRAM error:e decls_opt funcs_opt main_block
+      {: parser.addError("Línea " + eleft + ": Error en declaración del programa, se esperaba un identificador"); :}
+  | error:e
+      {: parser.addError("Línea " + eleft + ": Error crítico: el programa debe comenzar con PROGRAM"); :}
+  ;
+
+// ==================== MAIN BLOCK: Errores en el cuerpo principal ====================
+
+
+main_block ::=
+    BEGIN stmt_list END
+  | BEGIN error:e END
+      {: parser.addError("Línea " + eleft + ": Error en el cuerpo del programa principal"); :}
+  | BEGIN stmt_list error:e
+      {: parser.addError("Línea " + eleft + ": Falta END al final del programa"); :}
+  | error:e stmt_list END
+      {: parser.addError("Línea " + eleft + ": Falta BEGIN al inicio del programa principal"); :}
+  ;
+
+stmt_list ::=
+    stmt_list stmt
+  | stmt
+  ;
+
+// ==================== VARIABLES GLOBALES: Errores en declaraciones ====================
+
+//   Permite declarar variables globales ANTES del main.
+
+//  Sintaxis soportada (estilo Pascal):
+//     VAR a, b: INT;
+//     VAR msg: STRING;
+
+//  - `decls_opt` = sección de globales opcional
+//  - `globals`   = 1..n declaraciones
+//  - `decl`      = una declaración con lista de IDs y un tipo
+//  - `id_list`   = a, b, c
+//  - `type_spec` = TINT | TREAL | TSTRING | TCHAR
+
+
+
+decls_opt ::= var_sections | /* vacío */ ;
+
+
+var_sections ::=
+    VAR decl_items var_sections_tail
+  | VAR error:e SEMI var_sections_tail
+      {: parser.addError("Línea " + eleft + ": Error en declaración de variable"); :}
+  ;
+
+
+var_sections_tail ::=
+    VAR decl_items var_sections_tail
+  | VAR error:e SEMI var_sections_tail
+      {: parser.addError("Línea " + eleft + ": Error en declaración de variable"); :}
+  | /* vacío */ ;
+
+
+decl_items ::= decl_item decl_items_tail ;
+
+decl_items_tail ::=
+     decl_item decl_items_tail
+  | /* vacío */ ;
+
+decl_item ::=
+    id_list COLON type_spec SEMI
+    {:
+        //Generamos el codigo para la declaracion de variables
+        for (String nombre : parser.tmpIdList) {
+            CodeGenerator.getInstance().declararGlobal(nombre, parser.tmpType);
+        }
+        // Limpiamos la "pila"
+        parser.tmpIdList.clear();
+        parser.tmpType = null;
+    :}
+  | id_list COLON type_spec error:e
+      {: parser.addError("Línea " + eleft + ": Falta ';' al final de la declaración"); :}
+  | id_list error:e type_spec SEMI
+      {: parser.addError("Línea " + eleft + ": Falta ':' en la declaración de variable"); :}
+  ;
+
+id_list ::= id_list COMMA ID:id
+      {:
+      // Añadimos otro identificador a la lista actual
+        parser.tmpIdList.add(id.toString());
+      :}
+| ID:id  // ID: id guardar el valor del id para poder usarlo
+      {:
+          // Empezamos una nueva lista de IDs para esta declaración
+          parser.tmpIdList.clear();
+          parser.tmpIdList.add(id.toString());
+      :} ;
+
+// type_spec ::= TINT | TREAL | TSTRING | TCHAR ;
+type_spec ::=
+    TINT
+      {:
+          parser.tmpType = "INT";
+      :}
+  | TREAL
+      {:
+          parser.tmpType = "REAL";
+      :}
+  | TSTRING
+      {:
+          parser.tmpType = "STRING";
+      :}
+  | TCHAR
+      {:
+          parser.tmpType = "CHAR";
+      :}
+  ;
+
+//================================================================================================================
+
+// ==================== FUNCIONES Y PROCEDIMIENTOS ====================
+
+//   Permite definir funciones y procedimientos ANTES del main.
+
+//   Sintaxis soportada:
+//   FUNCTION Suma(a, b: INT): INT;
+//     BEGIN
+//      Suma := a + b;
+//     END
+
+//     PROCEDURE Show(x: INT);
+//     BEGIN
+//       write(x);
+//     END
+
+//   - `funcs_opt`  = sección opcional
+//   - `func_list`  = 1..n definiciones (func o proc)
+//   - `func`       = FUNCTION ... : tipo ; block  |  PROCEDURE ... ; block
+//   - `param_secs` = (a,b: INT; c: REAL) | vacío
+//   - `param_sec`  = id_list : type_spec
+//   - `block`      = BEGIN stmt_list END   (reutilizable)
+
+return_stmt ::= ID ASSIGN expr SEMI ;
+
+func_block ::= decls_opt BEGIN stmt_list return_stmt END ;
+proc_block ::= decls_opt BEGIN stmt_list END ;
+
+funcs_opt ::= func_list | /* vacío */ ;
+
+func_list ::= func_list func | func_list proc | func | proc ;
+
+func ::=
+    FUNCTION ID LPAREN param_secs RPAREN COLON type_spec SEMI func_block
+  | FUNCTION error:e SEMI func_block
+      {: parser.addError("Línea " + eleft + ": Error en la declaración de función"); :}
+  ;
+
+proc ::=
+    PROCEDURE ID LPAREN param_secs RPAREN SEMI proc_block
+  | PROCEDURE error:e SEMI proc_block
+      {: parser.addError("Línea " + eleft + ": Error en la declaración de procedimiento"); :}
+  ;
+
+param_secs ::= param_secs SEMI param_sec | param_sec | /* vacío */ ;
+
+param_sec  ::= id_list COLON type_spec ;
+
+block ::=
+    BEGIN stmt_list END
+  | BEGIN error:e END
+      {: parser.addError("Línea " + eleft + ": Error en el bloque de código"); :}
+  ;
+
+//================================================================================================================
+
+// ==================== SENTENCIAS: Recuperación detallada de errores ====================
+
+// stmt ::=
+//       ID ASSIGN expr SEMI
+//     | READ SEMI
+//     | WRITE LPAREN expr RPAREN SEMI
+//     | IF bExpr THEN BEGIN stmt_list END
+//     | WHILE bExpr DO BEGIN stmt_list END
+//     | SEMI // vacío permisivo
+//     ;
+
+//   - Asignación:       x := <expr> ;
+//   - Lectura         :   READ ;
+//   - Escritura:        write(<expr>);
+//   - IF:               IF <bExpr> THEN <bloque>
+//   - WHILE:            WHILE <bExpr> DO <bloque>
+//   - Vacía:            ;   (no-op; útil para tolerancia)
+
+stmt ::=
+    
+    // Asignaciones
+    // ID ASSIGN expr SEMI
+    ID:id ASSIGN expr:e SEMI // devolver el resultado de la exprecion e 
+      {:
+          // // expr genero un "push <valor>"
+          // String name = id.toString();
+
+          // CodeGenerator.getInstance().emit(
+          //     "    pop eax\n" +
+          //     "    mov [" + name + "], eax\n"
+          // );
+
+        //   String name = id.toString();
+        //   String tipo = codigo.CodeGenerator.getInstance().getGlobalType(name);
+        //   CodeGenerator cg = CodeGenerator.getInstance();
+
+        //   cg.emit("    pop eax\n");
+
+        //   if ("CHAR".equals(tipo)) {
+        //       // variable de 1 byte: guardamos solo AL
+        //       cg.emit("    mov [" + name + "], al\n");
+        //   } else {
+        //       // INT / REAL / STRING (por ahora todos en 4 bytes)
+        //       cg.emit("    mov [" + name + "], eax\n");
+        //   }
+            // String name = id.toString();
+            // CodeGenerator cg = CodeGenerator.getInstance();
+
+            // cg.emit("    pop eax\n");
+            // cg.emit("    mov [" + name + "], eax\n");
+            // String name = id.toString();
+            // codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+            // String tipo = cg.getGlobalType(name);
+            
+            // if ("CHAR".equals(tipo)) {
+            //     cg.emit("    pop eax\n");
+            //     cg.emit("    mov [" + name + "], al\n");
+            // } else if ("INT".equals(tipo) || "REAL".equals(tipo)) {
+            //     cg.emit("    pop eax\n");
+            //     cg.emit("    mov [" + name + "], eax\n");
+            // } else if ("STRING".equals(tipo)) {
+            //     parser.addError("Asignación inválida: no se puede asignar una expresión numérica a STRING (" + name + ")");
+            // }
+            
+          String name = id.toString();
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          String tipo = cg.getGlobalType(name);
+
+          if (tipo == null) {
+              parser.addError("Variable no declarada: " + name);
+          } else if ("STRING".equals(tipo)) {
+              // Esperamos que expr nos haya dado info de string
+              if (e instanceof parser.StringExprInfo) {
+                  parser.StringExprInfo info = (parser.StringExprInfo) e;
+
+                  if (info.isVar) {
+                      // a := b;  (ambas STRING)
+                      cg.emitCopyStringVar(name, info.text);
+                  } else {
+                      // a := "hola";
+                      cg.emitCopyStringLiteral(name, info.text);
+                  }
+              } else {
+                  parser.addError(
+                    "La expresión a asignar a la variable STRING " + name + " no es de tipo STRING"
+                  );
+              }
+          } else {
+              // INT, REAL, CHAR: comportamiento normal
+              if (e instanceof parser.StringExprInfo) {
+                  parser.addError(
+                    "No se puede asignar una expresión STRING a la variable " + name +
+                    " de tipo " + tipo
+                  );
+              } else {
+                  cg.emit("    pop eax\n");
+                  if ("CHAR".equals(tipo)) {
+                      cg.emit("    mov [" + name + "], al\n");
+                  } else {
+                      cg.emit("    mov [" + name + "], eax\n");
+                  }
+              }
+          }
+      
+
+      :}
+  | ID ASSIGN bExpr SEMI
+  | ID ASSIGN expr error:e
+      {: parser.addError("Línea " + eleft + ": Falta ';' al final de la asignación"); :}
+  | ID error:e expr SEMI
+      {: parser.addError("Línea " + eleft + ": Falta ':=' en la asignación"); :}
+
+  // READ
+  | READ SEMI
+  | READ LPAREN expr RPAREN SEMI
+  | READ error:e
+      {: parser.addError("Línea " + eleft + ": Error en sentencia READ, falta ';'"); :}
+
+  // WRITE
+  | WRITE LPAREN write_args RPAREN SEMI
+  | WRITE LPAREN write_args RPAREN error:e
+      {: parser.addError("Línea " + eleft + ": Falta ';' después de WRITE"); :}
+  | WRITE error:e SEMI
+      {: parser.addError("Línea " + eleft + ": Error en sentencia WRITE"); :}
+
+  // Llamadas a funciones/procedimientos
+  | ID LPAREN args_opt RPAREN SEMI
+  | ID LPAREN args_opt RPAREN error:e
+      {: parser.addError("Línea " + eleft + ": Falta ';' después de la llamada"); :}
+
+  // IF statements
+   | IF if_cond THEN block
+      {:
+
+        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          int indice = parser.indices.pop();
+          String elseLabel = parser.labelStack.pop(); // no lo usamos
+          String endLabel  = parser.labelStack.pop();
+
+           cg.replaceAt(indice, "    je " + endLabel + "\n");
+        //   cg.undoLastEmit();
+
+          // Para IF sin ELSE, simplemente usamos endLabel como fin del IF
+          cg.emit(endLabel + ":\n");
+
+      :}
+
+ 
+  | IF if_cond THEN block ELSE 
+        {:
+        //   // Al terminar el bloque, ponemos la etiqueta de salida
+        //   String exitLabel = parser.labelStack.peek();
+        //   String elseLabel = parser.labelStack.pop();
+        //   codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        //   cg.emit(elseLabel + ":\n");
+         codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+
+          String elseLabel = parser.labelStack.pop();   // etiqueta del ELSE
+          String endLabel  = parser.labelStack.peek();  // etiqueta de fin (no la sacamos aún)
+
+          // Al terminar el bloque THEN:
+          // saltamos al final del IF para NO ejecutar el ELSE
+          cg.emit("    jmp " + endLabel + "\n");
+
+          // Y ahora abrimos el bloque ELSE
+          cg.emit(elseLabel + ":\n");
+      :}
+  block
+    {:
+          // Al terminar el bloque, ponemos la etiqueta de salida
+          String exitLabel = parser.labelStack.pop();
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          cg.emit(exitLabel + ":\n");
+      :}
+
+
+  | IF bExpr error:e block
+      {: parser.addError("Línea " + eleft + ": Falta THEN en estructura IF"); :}
+  | IF error:e THEN block
+      {: parser.addError("Línea " + eleft + ": Error en la condición del IF"); :}
+  | IF bExpr ID:i block
+      {: parser.addError("Línea " + ileft + ": Se esperaba THEN, se encontró identificador"); :}
+  | IF bExpr ELSE block
+      {: parser.addError("Error en estructura IF: falta THEN antes de ELSE"); :}
+
+  // WHILE statements
+  | WHILE bExpr DO block
+  | WHILE bExpr error:e block
+      {: parser.addError("Línea " + eleft + ": Falta DO en estructura WHILE"); :}
+  | WHILE error:e DO block
+      {: parser.addError("Línea " + eleft + ": Error en la condición del WHILE"); :}
+  | WHILE bExpr ID:i block
+      {: parser.addError("Línea " + ileft + ": Se esperaba DO, se encontró identificador"); :}
+
+  // FOR statements
+  | FOR ID ASSIGN expr TO expr DO block
+  | FOR ID ASSIGN expr TO expr error:e block
+      {: parser.addError("Línea " + eleft + ": Falta DO en estructura FOR"); :}
+  | FOR error:e DO block
+      {: parser.addError("Línea " + eleft + ": Error en la declaración del FOR"); :}
+  | FOR ID ASSIGN expr TO expr ID:i block
+      {: parser.addError("Línea " + ileft + ": Se esperaba DO, se encontró identificador"); :}
+
+  // Sentencia vacía
+  | SEMI
+
+  // Error genérico con recuperación hasta el siguiente punto y coma
+  | error:e SEMI
+      {: parser.addError("Línea " + eleft + ": Error de sintaxis en la sentencia"); :}
+
+  // Recuperación específica para token ERROR (devuelto por el scanner)
+  | ERROR:lex SEMI
+      {: parser.addError("Línea " + ((Symbol)lex).left + ": Error léxico en la sentencia"); :}
+
+  ;
+
+// ==================== IF sencillo (sin ELSE) ====================
+
+// Parte de adelante del IF:  IF <bExpr> THEN
+
+//================================================================================================================
+
+args_opt  ::= /* vacío */ | args_plus ;
+
+args_plus ::=
+    expr
+  | args_plus COMMA expr
+  ;
+
+write_args ::=
+    expr
+  | write_args COMMA expr
+  ;
+
+//================================================================================================================
+
+// ==================== EXPRESIONES BOOLEANAS (SIN conflictos) ====================
+
+
+//    bExpr ::=
+//       expr EQ expr | expr NE expr | expr LT expr
+//     | expr LE expr | expr GT expr | expr GE expr
+//     | bExpr OR bExpr
+//     | bExpr AND bExpr
+//     | NOT bExpr
+//     | LPAREN bExpr RPAREN
+//     ;
+
+//   - Comparaciones entre expresiones aritméticas.
+//   - Conectores: OR / AND / NOT.
+//   - Paréntesis para agrupar.
+
+//  Precedencia (definida en "precedence"):
+//     AND > OR; comparadores por encima de ambos.
+//     `NOT` se aplica directamente sobre bExpr.
+
+bExpr ::=
+    expr EQ expr
+      {:
+          CodeGenerator.getInstance().emit(
+              "    pop ebx\n" +
+              "    pop eax\n" +
+              "    cmp eax, ebx\n" +
+              "    sete al\n" +
+              "    movzx eax, al\n" +
+              "    push eax\n"
+          );
+      :}
+  | expr NE expr
+  | expr LT expr
+  | expr LE expr
+  | expr GT expr
+  | expr GE expr
+  | bExpr OR bExpr
+  | bExpr AND bExpr
+  | NOT bExpr
+  | LPAREN bExpr RPAREN
+  ;
+if_cond ::= 
+    bExpr
+      {:
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+
+          // Creamos una etiqueta única de salida del IF
+          String exitLabel = parser.newLabel("endif");
+          String elseLabel = parser.newLabel("startElse");
+          // La guardamos en la pila semántica para usarla al final del IF
+          
+          parser.labelStack.push(exitLabel);
+          parser.labelStack.push(elseLabel);
+          // En la pila tenemos el resultado booleano de bExpr (0 o 1)
+          cg.emit(
+              "    pop eax\n" +
+              "    cmp eax, 0\n" 
+          );
+        //   cg.emit("    je " + elseLabel + "\n");
+          int indice = cg.emitAndGetIndex("    je " + elseLabel + "\n");
+          parser.indices.push(indice);
+      :}
+  ;
+//================================================================================================================
+
+// ==================== EXPRESIONES ARITMÉTICAS (SIN conflictos) ====================
+
+//expr ::=
+//       expr PLUS expr
+//     | expr MINUS expr
+//     | expr TIMES expr
+//     | expr DIVIDE expr
+//     | expr MOD expr
+//     | expr INTDIV expr
+//     | MINUS expr %prec UMINUS
+//     | INT_LIT | REAL_LIT | HEX_LIT | STR_LIT | CHAR_LIT | OCT_LIT | ID
+//     | LPAREN expr RPAREN
+//     ;
+
+//   - Operadores binarios: +, -, *, /, MOD, DIV.
+//   - Menos unario: `-x` (%prec UMINUS) con mayor
+//     prioridad que los binarios (p.ej. `-a * b`
+//     se interpreta como `(-a) * b`).
+//   - Átomos: literales e identificadores.
+//   - Paréntesis para agrupar.
+
+//  Las ambigüedades se resuelven con el bloque
+//   `precedence` (niveles y asociatividad).
+
+
+expr ::=
+    // expr PLUS expr
+    expr PLUS expr
+      {:
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          cg.emit("    pop ebx\n"); // Segundo parametro
+          cg.emit("    pop eax\n"); // Primer parametro
+          cg.emit("    add eax, ebx\n"); //Hacer la suma
+          cg.emit("    push eax\n"); //Guardar el resultado en la pila
+      :}
+  | expr MINUS expr
+      {:
+          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+          cg.emit("    pop ebx\n"); // Segundo parametro
+          cg.emit("    pop eax\n"); // Primer parametro
+          cg.emit("    sub eax, ebx\n"); //Hacer la suma
+          cg.emit("    push eax\n"); //Guardar el resultado en la pila
+      :}
+  | expr TIMES expr
+  | expr DIVIDE expr
+  | expr MOD expr
+  | expr INTDIV expr
+  | MINUS expr %prec UMINUS
+
+  | INT_LIT:n
+      {:
+          // n es el valor (String) del literal, no un Symbol
+          String value = n.toString();
+          CodeGenerator.getInstance().emit("    push " + value + "\n");
+      :}
+  | REAL_LIT:r
+      {:
+          String value = r.toString();
+          // Por ahora lo tratamos como un valor de 32 bits "normal"
+          CodeGenerator.getInstance().emit("    push " + value + "\n");
+      :}
+  | HEX_LIT
+  | STR_LIT:lit
+    {:
+       RESULT = lit;
+    :}
+  
+  | CHAR_LIT:n
+      {:
+          String value = n.toString();
+          CodeGenerator.getInstance().emit("    push " + value + "\n");
+      :}
+  // | ID
+  | ID:id
+      {:
+          // Cargar el valor de la variable en la pila
+          String name = id.toString(); 
+          CodeGenerator.getInstance().emit(
+              "    push dword [" + name + "]\n"
+          );
+      :}
+  | LPAREN expr RPAREN
+  | ID LPAREN args_opt RPAREN
+  | expr INC
+    {:
+      CodeGenerator.getInstance().emit(
+          "    pop eax\n" +
+          "    inc eax\n" +
+          "    push eax\n"
+      );
+    :}
+  | expr DEC
+    {:
+        CodeGenerator.getInstance().emit(
+            "    pop eax\n" +
+            "    dec eax\n" +
+            "    push eax\n"
+        );
+    :}
+
+  // Recuperación específica para token ERROR (devuelto por el scanner)
+  | ERROR:lex
+        {: parser.addError("Línea " + ((Symbol)lex).left + ": Error léxico en expresión"); RESULT = null; :}
+  ;

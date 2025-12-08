@@ -1,14 +1,30 @@
-global main
-extern printf
+%include "io.mac"
 
-section .data
-    fmtInt db "%d", 10, 0
+.DATA
 
-section .bss
+.UDATA
 
-    a resd 1
-    b resd 1
+    g resd 1
+    h resd 1
+    s resb 256
+    c resb 1
 
-section .text
+.CODE
+.STARTUP
 main:
-    ret
+    push 10
+    pop eax
+    mov [g], eax
+    push 20
+    pop eax
+    mov [h], eax
+    mov byte [s + 0], 104
+    mov byte [s + 1], 111
+    mov byte [s + 2], 108
+    mov byte [s + 3], 97
+    mov byte [s + 4], 0
+    push 'A'
+    pop eax
+    mov [c], al
+done:
+    .EXIT

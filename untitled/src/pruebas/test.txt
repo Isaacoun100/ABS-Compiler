@@ -1,8 +1,18 @@
-PROGRAM Prueba
+PROGRAM DemoErrores
 VAR
-  a, b: INT;
+  a, a: INT;        
+  b: INT;
+  msg: STRING;
 
 BEGIN
+  b := 5;
+  c := 3;           
 
-    a := 4;
+  msg := 10;        
+  a  := "hola";     
+
+  IF a = msg THEN   
+  BEGIN
+    a := 1;
+  END
 END

@@ -29,13 +29,14 @@ public class Main {
                 // Collect any errors that occurred during lexical and syntactic analysis
                 ArrayList<String> lexErrors = lexer.lexErrors;
                 ArrayList<String> synErrors = parser.synErrors;
-
-                if (lexErrors.isEmpty() && synErrors.isEmpty()) {
+                ArrayList<String> semErrors = parser.semErrors;
+                
+                if (lexErrors.isEmpty() && synErrors.isEmpty() && semErrors.isEmpty() ) {
                     generateCode(result);
                 } else {
-                    printErrors(lexErrors, synErrors);
+                    printErrors(lexErrors, synErrors, semErrors);
                 }
-
+                parser.imprimirTablaSimbolos();
             } catch (Exception e) {
                 handleParseException(parser, e);
             }
@@ -71,7 +72,7 @@ public class Main {
         System.out.println("✓ AST/resultado: " + result);
     }
 
-    private static void printErrors(ArrayList<String> lexErrors, ArrayList<String> synErrors) {
+    private static void printErrors(ArrayList<String> lexErrors, ArrayList<String> synErrors, ArrayList<String> semErrors) {
         
         if (!lexErrors.isEmpty()) {
             System.out.println("\n========== ERRORES LÉXICOS (" + lexErrors.size() + ") ==========");
@@ -82,10 +83,16 @@ public class Main {
             System.out.println("\n========== ERRORES SINTÁCTICOS (" + synErrors.size() + ") ==========");
             synErrors.forEach(error -> System.out.println("  ✗ " + error));
         }
+        if (!semErrors.isEmpty()) {
+        System.out.println("\n========== ERRORES SEMÁNTICOS (" + semErrors.size() + ") ==========");
+        semErrors.forEach(error -> System.out.println("  ✗ " + error));
+        }
 
         System.out.println("\n-----------------------------------------------------");
-        System.out.println("Total: " + lexErrors.size() + " léxico(s), " +
-                synErrors.size() + " sintáctico(s)");
+        System.out.println("Total: "
+            + lexErrors.size() + " léxico(s), "
+            + synErrors.size() + " sintáctico(s), "
+            + semErrors.size() + " semántico(s)");
     }
 
     private static void handleParseException(Parser parser, Exception e) {

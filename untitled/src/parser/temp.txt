@@ -1,0 +1,44 @@
+    // ID:id ASSIGN expr:e SEMI // devolver el resultado de la exprecion e 
+    //   {:
+    //       // // expr genero un "push <valor>"
+    //       // String name = id.toString();
+
+    //       // CodeGenerator.getInstance().emit(
+    //       //     "    pop eax\n" +
+    //       //     "    mov [" + name + "], eax\n"
+    //       // );
+
+    //     //   String name = id.toString();
+    //     //   String tipo = codigo.CodeGenerator.getInstance().getGlobalType(name);
+    //     //   CodeGenerator cg = CodeGenerator.getInstance();
+
+    //     //   cg.emit("    pop eax\n");
+
+    //     //   if ("CHAR".equals(tipo)) {
+    //     //       // variable de 1 byte: guardamos solo AL
+    //     //       cg.emit("    mov [" + name + "], al\n");
+    //     //   } else {
+    //     //       // INT / REAL / STRING (por ahora todos en 4 bytes)
+    //     //       cg.emit("    mov [" + name + "], eax\n");
+    //     //   }
+    //         // String name = id.toString();
+    //         // CodeGenerator cg = CodeGenerator.getInstance();
+
+    //         // cg.emit("    pop eax\n");
+    //         // cg.emit("    mov [" + name + "], eax\n");
+    //         String name = id.toString();
+    //         codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+    //         String tipo = cg.getGlobalType(name);
+            
+    //         if ("CHAR".equals(tipo)) {
+    //             cg.emit("    pop eax\n");
+    //             cg.emit("    mov [" + name + "], al\n");
+    //         } else if ("INT".equals(tipo) || "REAL".equals(tipo)) {
+    //             cg.emit("    pop eax\n");
+    //             cg.emit("    mov [" + name + "], eax\n");
+    //         } else if ("STRING".equals(tipo)) {
+    //             parser.addError("Asignación inválida: no se puede asignar una expresión numérica a STRING (" + name + ")");
+    //         }
+
+
+    //   :}
