@@ -2335,7 +2335,7 @@ class CUP$Parser$actions {
 		int e2right = ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()).right;
 		Object e2 = (Object)((java_cup.runtime.Symbol) CUP$Parser$stack.peek()).value;
 		
-          codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+        //   codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
           DO a = (DO) e1;
           DO b = (DO) e2;
 
@@ -2346,20 +2346,60 @@ class CUP$Parser$actions {
                   + a.tipo + " y " + b.tipo, e1left
               );
           }
-          cg.emitLoad(a);   // push valor de la izquierda
-          cg.emitLoad(b);   // push valor de la derecha
+        //   cg.emitLoad(a);   // push valor de la izquierda
+        //   cg.emitLoad(b);   // push valor de la derecha
 
-          cg.emit(
-              "    pop ebx\n" +
-              "    pop eax\n" +
-              "    cmp eax, ebx\n" +
-              "    sete al\n" +
-              "    movzx eax, al\n" +
-              "    push eax\n"
-          );
+        //   cg.emit(
+        //       "    pop ebx\n" +
+        //       "    pop eax\n" +
+        //       "    cmp eax, ebx\n" +
+        //       "    sete al\n" +
+        //       "    movzx eax, al\n" +
+        //       "    push eax\n"
+        //   );
 
-          parser.semPopDO("EQ-right");
-          parser.semPopDO("EQ-left");
+        codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+
+          // CONSTANT FOLDING: si ambos son constantes INT → evaluamos en el compilador
+          if (a.clase == DO.Clase.CONST &&
+              b.clase == DO.Clase.CONST) {
+
+              try {
+                  int va = Integer.parseInt(a.valorConst);
+                  int vb = Integer.parseInt(b.valorConst);
+                  int vr = (va == vb) ? 1 : 0;
+
+                  // En vez de cmp/sete, metemos directamente 0 o 1 en la pila
+                  cg.emit("    push " + vr + "\n");
+              } catch (NumberFormatException ex) {
+                  // fallback al caso normal
+                  cg.emitLoad(a);   // push valor de la izquierda
+                  cg.emitLoad(b);   // push valor de la derecha
+                  cg.emit(
+                      "    pop ebx\n" +
+                      "    pop eax\n" +
+                      "    cmp eax, ebx\n" +
+                      "    sete al\n" +
+                      "    movzx eax, al\n" +
+                      "    push eax\n"
+                  );
+              }
+          } else {
+              // Caso general (como lo tenías)
+              cg.emitLoad(a);
+              cg.emitLoad(b);
+              cg.emit(
+                  "    pop ebx\n" +
+                  "    pop eax\n" +
+                  "    cmp eax, ebx\n" +
+                  "    sete al\n" +
+                  "    movzx eax, al\n" +
+                  "    push eax\n"
+              );
+          }
+
+        //   parser.semPopDO("EQ-right");
+        //   parser.semPopDO("EQ-left");
 
       
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("bExpr",15, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
@@ -2494,36 +2534,78 @@ class CUP$Parser$actions {
             Parser.DO a = (Parser.DO) e1;
             Parser.DO b = (Parser.DO) e2;
 
-            if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
-                parser.addSemanticError("Suma solo permitida entre INT, se usó: "
-                                + a.tipo + " + " + b.tipo, e1left);
+            // if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
+            //     parser.addSemanticError("Suma solo permitida entre INT, se usó: "
+            //                     + a.tipo + " + " + b.tipo, e1left);
+            // }
+            // 1) Chequeo de tipos
+                if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
+                    parser.addSemanticError(
+                        "Suma solo permitida entre INT, se usó: "
+                        + a.tipo + " + " + b.tipo,
+                        e1left
+                    );
+                }
+            
+             // 2) CONSTANT FOLDING: ambos operandos son constantes
+        if (a.clase == Parser.DO.Clase.CONST &&
+            b.clase == Parser.DO.Clase.CONST) {
+
+            try {
+                int va = Integer.parseInt(a.valorConst);
+                int vb = Integer.parseInt(b.valorConst);
+                int vr = va + vb;
+
+                // devolvemos un DO constante, NO generamos ASM
+                RESULT = new DO("INT", String.valueOf(vr));
+            } catch (NumberFormatException ex) {
+                // si algo raro pasa con el texto, caemos al caso general
+                if (parser.enMain()) {
+                    codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+                    String temp = cg.newTemp();
+                    cg.declararTemporal(temp, "INT");
+                    DO res = new DO("INT", DO.OrigenAddr.TEMP, temp);
+
+                    cg.emitLoad(a);
+                    cg.emitLoad(b);
+                    cg.emit("    pop ebx\n");
+                    cg.emit("    pop eax\n");
+                    cg.emit("    add eax, ebx\n");
+                    cg.emit("    mov [" + temp + "], eax\n");
+
+                    RESULT = res;
+                } else {
+                    RESULT = new DO("INT", "0");
+                }
             }
-            DO res;
-            if (parser.enMain()) {
-                codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
-
-                // Temporal para el resultado
-                String temp = cg.newTemp();
-                cg.declararTemporal(temp, "INT"); 
-                res = new DO("INT", DO.OrigenAddr.TEMP, temp);
-
-                cg.emitLoad(a);
-                cg.emitLoad(b);
-                cg.emit("    pop ebx\n");
-                cg.emit("    pop eax\n");
-                cg.emit("    add eax, ebx\n");
-                cg.emit("    mov [" + temp + "], eax\n");
-
             } else {
-                // Dentro de funciones: no generamos código,
-                // solo devolvemos algún DO dummy
-                res = new DO("INT", "0");
-            }      
-            RESULT = res;
-            // Pila semántica de DOs: consumimos operandos y dejamos resultado
-            parser.semPopDO("PLUS-right");
-            parser.semPopDO("PLUS-left");
-            parser.semPushDO(res, "PLUS-result");
+                DO res;
+                if (parser.enMain()) {
+                    codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+
+                    // Temporal para el resultado
+                    String temp = cg.newTemp();
+                    cg.declararTemporal(temp, "INT"); 
+                    res = new DO("INT", DO.OrigenAddr.TEMP, temp);
+
+                    cg.emitLoad(a);
+                    cg.emitLoad(b);
+                    cg.emit("    pop ebx\n");
+                    cg.emit("    pop eax\n");
+                    cg.emit("    add eax, ebx\n");
+                    cg.emit("    mov [" + temp + "], eax\n");
+
+                } else {
+                    // Dentro de funciones: no generamos código,
+                    // solo devolvemos algún DO dummy
+                    res = new DO("INT", "0");
+                }      
+                RESULT = res;
+                // Pila semántica de DOs: consumimos operandos y dejamos resultado
+                parser.semPopDO("PLUS-right");
+                parser.semPopDO("PLUS-left");
+                parser.semPushDO(res, "PLUS-result");
+            } 
         
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }
@@ -2542,34 +2624,66 @@ class CUP$Parser$actions {
 		
         Parser.DO a = (Parser.DO) e1;
         Parser.DO b = (Parser.DO) e2;
-        if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
-                parser.addSemanticError("Resta solo permitida entre INT, se usó: "
-                                + a.tipo + " - " + b.tipo, e1left);
+        // if (!"INT".equals(a.tipo) || !"INT".equals(b.tipo)) {
+        //         parser.addSemanticError("Resta solo permitida entre INT, se usó: "
+        //                         + a.tipo + " - " + b.tipo, e1left);
+        //     }
+        // 2) CONSTANT FOLDING: ambos operandos son constantes
+        if (a.clase == Parser.DO.Clase.CONST &&
+            b.clase == Parser.DO.Clase.CONST) {
+
+            try {
+                int va = Integer.parseInt(a.valorConst);
+                int vb = Integer.parseInt(b.valorConst);
+                int vr = va - vb;
+
+                RESULT = new DO("INT", String.valueOf(vr));
+            } catch (NumberFormatException ex) {
+                // fallback al caso general
+                if (parser.enMain()) {
+                    codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+                    String temp = cg.newTemp();
+                    cg.declararTemporal(temp, "INT");
+                    DO res = new DO("INT", DO.OrigenAddr.TEMP, temp);
+
+                    cg.emitLoad(a);
+                    cg.emitLoad(b);
+                    cg.emit("    pop ebx\n");
+                    cg.emit("    pop eax\n");
+                    cg.emit("    sub eax, ebx\n");
+                    cg.emit("    mov [" + temp + "], eax\n");
+
+                    RESULT = res;
+                } else {
+                    RESULT = new DO("INT", "0");
+                }
             }
+            } else {
+            // 3) Caso general
+                DO res;
+                if (parser.enMain()) {
+                    codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
 
-        DO res;
-        if (parser.enMain()) {
-            codigo.CodeGenerator cg = codigo.CodeGenerator.getInstance();
+                    String temp = cg.newTemp();
+                    cg.declararTemporal(temp, "INT");
+                    res = new DO("INT", DO.OrigenAddr.TEMP, temp);
 
-            String temp = cg.newTemp();
-            cg.declararTemporal(temp, "INT");
-             res = new DO("INT", DO.OrigenAddr.TEMP, temp);
+                    cg.emitLoad(a);
+                    cg.emitLoad(b);
+                    cg.emit("    pop ebx\n");
+                    cg.emit("    pop eax\n");
+                    cg.emit("    sub eax, ebx\n");
+                    cg.emit("    mov [" + temp + "], eax\n");
+                } else {
+                    res = new DO("INT", "0");
+                }
+                
+                RESULT = res;
 
-            cg.emitLoad(a);
-            cg.emitLoad(b);
-            cg.emit("    pop ebx\n");
-            cg.emit("    pop eax\n");
-            cg.emit("    sub eax, ebx\n");
-            cg.emit("    mov [" + temp + "], eax\n");
-        } else {
-            res = new DO("INT", "0");
-        }
-
-        RESULT = res;
-
-        parser.semPopDO("MINUS-right");
-        parser.semPopDO("MINUS-left");
-        parser.semPushDO(res, "MINUS-result");
+                parser.semPopDO("MINUS-right");
+                parser.semPopDO("MINUS-left");
+                parser.semPushDO(res, "MINUS-result");
+        } 
     
               CUP$Parser$result = parser.getSymbolFactory().newSymbol("expr",14, ((java_cup.runtime.Symbol)CUP$Parser$stack.elementAt(CUP$Parser$top-2)), ((java_cup.runtime.Symbol)CUP$Parser$stack.peek()), RESULT);
             }

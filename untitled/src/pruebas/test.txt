@@ -1,9 +1,11 @@
-PROGRAM TestSemantico
+PROGRAM ConstFoldTest
 VAR
-  x, y: INT;
-  s: STRING;
-  g: INT;
-
+  x: INT;
 BEGIN
-  x := 10;
+  x := 2 + 3;
+  x := 10 - 4;
+  IF 1 = 0 THEN
+  BEGIN
+    x := 999;
+  END
 END
